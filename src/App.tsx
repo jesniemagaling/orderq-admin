@@ -17,12 +17,12 @@ export default function App() {
         <Route element={<MainLayout />}>
           {/* Admin */}
           <Route path="/admin/overview" element={<Overview />} />
-          <Route path="/admin/orders" element={<Orders role="admin" />} />
+          <Route path="/admin/orders" element={<Orders />} />
           <Route path="/admin/menu" element={<Menu />} />
 
           {/* Cashier */}
           <Route path="/cashier/tables" element={<Tables />} />
-          <Route path="/cashier/orders" element={<Orders role="cashier" />} />
+          <Route path="/cashier/orders" element={<Orders />} />
 
           {/* Kitchen */}
           <Route path="/kitchen/orders" element={<KitchenOrders />} />
