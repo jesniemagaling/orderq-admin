@@ -30,10 +30,14 @@ export default function MainLayout() {
   if (!role) return null;
 
   return (
-    <div className="relative flex min-h-screen bg-gray-100">
+    <div className="flex min-h-screen bg-gray-100">
       <ScreenSize />
-      <Sidebar role={role} />
-      <main className="flex-1 overflow-y-auto p-6">
+
+      <div className="fixed top-0 left-0 h-screen w-56 bg-white border-r shadow-sm">
+        <Sidebar role={role} />
+      </div>
+
+      <main className="flex-1 ml-56 p-6 overflow-y-auto">
         <Outlet />
       </main>
     </div>
