@@ -75,9 +75,8 @@ export default function Tables() {
       console.warn('Disconnected from WebSocket server');
     });
 
-    // Listen for backend order update event
     socket.on('newOrder', (data: { tableId: number }) => {
-      console.log('🔔 Received new order for table:', data.tableId);
+      console.warn('Received new order for table:', data.tableId);
 
       setTables((prev) =>
         prev.map((t) =>
@@ -85,17 +84,34 @@ export default function Tables() {
         )
       );
 
-      if (selectedTable && selectedTable.id === data.tableId) {
-        fetchTableOrders(data.tableId);
-      }
+      // Optionally refresh if the same table is open
+      setSelectedTable((prev) => {
+        if (prev && prev.id === data.tableId) {
+          fetchTableOrders(data.tableId);
+        }
+        return prev;
+      });
+    });
+
+    socket.on('tableStatusUpdate', ({ tableId, status }) => {
+      console.log('Table status updated:', tableId, status);
+
+      setTables((prev) =>
+        prev.map((t) => (t.id === tableId ? { ...t, status } : t))
+      );
+
+      setSelectedTable((prev) =>
+        prev && prev.id === tableId ? { ...prev, status } : prev
+      );
     });
 
     return () => {
       socket.off('newOrder');
+      socket.off('tableStatusUpdate');
       socket.off('connect');
       socket.off('disconnect');
     };
-  }, [selectedTable]);
+  }, []);
 
   // Fetch specific table’s orders
   const fetchTableOrders = async (tableId: number) => {
@@ -133,10 +149,28 @@ export default function Tables() {
     setPrintOrder(order);
   };
 
-  const handleConfirmPrint = () => {
+  const handleConfirmPrint = async () => {
     if (printOrder) {
-      window.print();
-      setPrintOrder(null);
+      try {
+        window.print();
+        await api.post(`/orders/${printOrder.id}/confirm`);
+
+        if (selectedTable) {
+          setTables((prev) =>
+            prev.map((t) =>
+              t.id === selectedTable.id ? { ...t, status: 'in_progress' } : t
+            )
+          );
+        }
+
+        setPrintOrder(null);
+
+        console.log(
+          `Order #${printOrder.id} confirmed and table set to in_progress`
+        );
+      } catch (error) {
+        console.error('Failed to confirm order:', error);
+      }
     }
   };
 
@@ -159,7 +193,6 @@ export default function Tables() {
 
   return (
     <div className="flex gap-10">
-      {/* LEFT: TABLES */}
       <div className="w-1/2">
         <h1 className="text-3xl font-semibold mb-6">All Tables</h1>
 
@@ -181,15 +214,6 @@ export default function Tables() {
                   <p className="font-medium text-lg">
                     Table #{table.table_number}
                   </p>
-                  <p
-                    className={`text-sm ${
-                      selectedTable?.id === table.id
-                        ? 'text-white/70'
-                        : 'text-gray-500'
-                    }`}
-                  >
-                    Table: {table.table_number}
-                  </p>
                 </div>
 
                 <div className="text-right">
@@ -206,7 +230,7 @@ export default function Tables() {
                   </p>
                 </div>
 
-                {/* Red Notification Dot */}
+                {/*notification*/}
                 {table.has_additional_order && (
                   <span className="absolute top-1 right-1 h-3 w-3 rounded-full bg-red-600 animate-pulse" />
                 )}
@@ -216,7 +240,6 @@ export default function Tables() {
         )}
       </div>
 
-      {/* RIGHT: ORDERS */}
       <div className="flex-1 py-4 px-2">
         {selectedTable ? (
           <>
@@ -288,13 +311,16 @@ export default function Tables() {
         )}
       </div>
 
-      {/* MODAL: PRINT ORDER */}
+      {/* PRINT ORDER */}
       <Modal isOpen={!!printOrder} onClose={() => setPrintOrder(null)}>
         {printOrder && (
           <>
             <h2 className="text-lg font-semibold mb-3">
-              {printOrder.is_additional ? 'Additional Order' : 'Main Order'} #
-              {printOrder.id}
+              {printOrder.is_additional
+                ? `Additional Order #${orders.findIndex(
+                    (o) => o.id === printOrder.id
+                  )}`
+                : 'Main Order'}
             </h2>
             <p className="text-sm text-gray-600 mb-2">
               Date:{' '}
@@ -325,7 +351,10 @@ export default function Tables() {
                 Subtotal: ₱
                 {Number(printOrder.total_amount || 0).toLocaleString(
                   undefined,
-                  { minimumFractionDigits: 2, maximumFractionDigits: 2 }
+                  {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  }
                 )}
               </p>
               <p>
