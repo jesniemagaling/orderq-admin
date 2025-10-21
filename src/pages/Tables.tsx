@@ -68,32 +68,30 @@ export default function Tables() {
     fetchTables();
 
     socket.on('connect', () => {
-      console.log('✅ Connected to WebSocket server');
+      console.log('Connected to WebSocket server');
     });
 
     socket.on('disconnect', () => {
-      console.warn('⚠️ Disconnected from WebSocket server');
+      console.warn('Disconnected from WebSocket server');
     });
 
     // Listen for backend order update event
-    socket.on('orderUpdate', (data: { table_id: number }) => {
-      console.log('🔔 Received update for table:', data.table_id);
+    socket.on('newOrder', (data: { tableId: number }) => {
+      console.log('🔔 Received new order for table:', data.tableId);
 
-      // Show notification dot for that table
       setTables((prev) =>
         prev.map((t) =>
-          t.id === data.table_id ? { ...t, has_additional_order: true } : t
+          t.id === data.tableId ? { ...t, has_additional_order: true } : t
         )
       );
 
-      // If the same table is open, refresh its orders
-      if (selectedTable && selectedTable.id === data.table_id) {
-        fetchTableOrders(data.table_id);
+      if (selectedTable && selectedTable.id === data.tableId) {
+        fetchTableOrders(data.tableId);
       }
     });
 
     return () => {
-      socket.off('orderUpdate');
+      socket.off('newOrder');
       socket.off('connect');
       socket.off('disconnect');
     };
