@@ -155,6 +155,16 @@ export default function Tables() {
         window.print();
         await api.post(`/orders/${printOrder.id}/confirm`);
 
+        // Update table orders so the confirmed one changes to unserved
+        setOrders((prev) =>
+          prev.map((order) =>
+            order.id === printOrder.id
+              ? { ...order, status: 'unserved' }
+              : order
+          )
+        );
+
+        // Optionally mark the table as "in progress"
         if (selectedTable) {
           setTables((prev) =>
             prev.map((t) =>
@@ -164,10 +174,7 @@ export default function Tables() {
         }
 
         setPrintOrder(null);
-
-        console.log(
-          `Order #${printOrder.id} confirmed and table set to in_progress`
-        );
+        console.log(`Order #${printOrder.id} confirmed and updated`);
       } catch (error) {
         console.error('Failed to confirm order:', error);
       }
@@ -185,7 +192,7 @@ export default function Tables() {
       case 'in_progress':
         return 'text-yellow-500';
       case 'served':
-        return 'text-blue-600';
+        return 'text-blue-400';
       default:
         return 'text-gray-500';
     }
@@ -265,12 +272,14 @@ export default function Tables() {
                           )
                         </span>
                       </h3>
-                      <Button
-                        className="bg-primary"
-                        onClick={() => handlePrintInvoice(order)}
-                      >
-                        Print Invoice
-                      </Button>
+                      {order.status === 'pending' && (
+                        <Button
+                          className="bg-primary"
+                          onClick={() => handlePrintInvoice(order)}
+                        >
+                          Print Invoice
+                        </Button>
+                      )}
                     </div>
 
                     <table className="w-full text-sm table-fixed">
