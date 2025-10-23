@@ -257,7 +257,7 @@ export default function Tables() {
             {orders.length > 0 ? (
               <>
                 {orders.map((order, orderIdx) => (
-                  <div key={order.id} className="mb-8 border-b pb-4">
+                  <div key={order.id} className="mb-8 border-b px-4">
                     <div className="flex justify-between items-center mb-2">
                       <h3 className="text-xl font-semibold">
                         {orderIdx === 0
@@ -285,9 +285,15 @@ export default function Tables() {
                     <table className="w-full text-sm table-fixed">
                       <thead>
                         <tr className="border-b">
-                          <th className="py-2 text-left w-[60%]">Product</th>
-                          <th className="py-2 text-center w-[20%]">Qty</th>
-                          <th className="py-2 text-right w-[20%]">Price</th>
+                          <th className="py-2 font-medium text-gray-600 text-left w-[60%]">
+                            Product
+                          </th>
+                          <th className="py-2 font-medium text-gray-600 text-center w-[20%]">
+                            Qty
+                          </th>
+                          <th className="py-2 font-medium text-gray-600 text-right w-[20%]">
+                            Price
+                          </th>
                         </tr>
                       </thead>
                       <tbody>

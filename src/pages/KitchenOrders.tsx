@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { io, Socket } from 'socket.io-client';
 import api from '../lib/axios';
 import Button from '../components/ui/Button';
@@ -68,34 +68,29 @@ export default function KitchenOrders() {
   useEffect(() => {
     fetchOrders();
 
-    socket.on('newOrder', async ({ tableId }) => {
-      setTablesWithNotif((prev) =>
-        prev.includes(tableId) ? prev : [...prev, tableId]
-      );
+    socket.on('newOrder', async ({ tableId, confirmed }) => {
+      if (!confirmed) return;
+
+      console.log('[KitchenOrders] Received newOrder:', tableId, confirmed);
+
+      setTablesWithNotif((prev) => {
+        const updated = prev.includes(tableId) ? prev : [...prev, tableId];
+        console.log('[KitchenOrders] tablesWithNotif:', updated); // ✅ debug log
+        return updated;
+      });
 
       // Refresh all tables' data
       await fetchOrders();
 
-      // If the same table is currently selected, refresh its orders
       if (selectedTableId === tableId) {
-        const res = await api.get(`/tables/${tableId}/details`);
-        const confirmed = res.data.orders.filter(
-          (o: Order) => o.status === 'unserved' || o.status === 'served'
-        );
+        await fetchOrdersForTable(tableId);
 
-        // Check if there’s a new order not already shown
-        setTableOrders((prev) => {
-          const existingIds = prev.map((o) => o.id);
-          const newOnes = confirmed.filter(
-            (o: Order) => !existingIds.includes(o.id)
-          );
-          return [...prev, ...newOnes];
-        });
+        setTablesWithNotif((prev) => prev.filter((id) => id !== tableId));
       }
     });
 
     socket.on('tableStatusUpdate', ({ tableId, status }) => {
-      if (['unserved', 'served'].includes(status)) {
+      if (['unserved', 'served', 'in_progress'].includes(status)) {
         fetchOrders();
         if (selectedTableId === tableId) fetchOrdersForTable(tableId);
       }
@@ -141,22 +136,24 @@ export default function KitchenOrders() {
   };
 
   // Group tables
-  const tables = Object.values(
-    orders.reduce((acc, order) => {
-      if (!acc[order.table_id]) {
-        acc[order.table_id] = {
-          id: order.table_id,
-          table_number: order.table_number,
-          has_additional_order: tablesWithNotif.includes(order.table_id),
-          hasUnserved: false,
-          hasServed: false,
-        };
-      }
-      if (order.status === 'unserved') acc[order.table_id].hasUnserved = true;
-      if (order.status === 'served') acc[order.table_id].hasServed = true;
-      return acc;
-    }, {} as Record<number, { id: number; table_number: string; has_additional_order: boolean; hasUnserved: boolean; hasServed: boolean }>)
-  );
+  const tables = useMemo(() => {
+    return Object.values(
+      orders.reduce((acc, order) => {
+        if (!acc[order.table_id]) {
+          acc[order.table_id] = {
+            id: order.table_id,
+            table_number: order.table_number,
+            has_additional_order: tablesWithNotif.includes(order.table_id),
+            hasUnserved: false,
+            hasServed: false,
+          };
+        }
+        if (order.status === 'unserved') acc[order.table_id].hasUnserved = true;
+        if (order.status === 'served') acc[order.table_id].hasServed = true;
+        return acc;
+      }, {} as Record<number, { id: number; table_number: string; has_additional_order: boolean; hasUnserved: boolean; hasServed: boolean }>)
+    );
+  }, [orders, tablesWithNotif]);
 
   if (loading) return <p>Loading orders...</p>;
 
@@ -207,41 +204,73 @@ export default function KitchenOrders() {
         {selectedTableId ? (
           <>
             <h2 className="text-right text-lg font-medium mb-6">
-              Table#:{' '}
+              Table #:{' '}
               {tables.find((t) => t.id === selectedTableId)?.table_number}
             </h2>
 
             {tableOrders.length > 0 ? (
-              <>
-                <div className="mb-6">
-                  <h3 className="text-lg font-semibold mb-2">Order Details</h3>
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b">
-                        <th className="text-left py-2">Product Name</th>
-                        <th className="text-right py-2">Quantity</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {tableOrders[0]?.items.map((item, idx) => (
-                        <tr key={idx} className="border-b">
-                          <td className="py-1">{item.name}</td>
-                          <td className="py-1 text-right">{item.quantity}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-
-                {tableOrders.some((o) => o.status === 'unserved') && (
-                  <Button
-                    className="bg-[#820D17] ml-auto block"
-                    onClick={() => handleMarkAsDone(selectedTableId)}
+              <div>
+                {tableOrders.map((order, index) => (
+                  <div
+                    key={order.id}
+                    className="bg-gray-50 rounded-lg mb-8 px-4 shadow-sm border border-gray-200"
                   >
-                    Done
-                  </Button>
-                )}
-              </>
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="font-semibold text-xl">
+                        {index === 0
+                          ? 'Main Order'
+                          : `Additional Order #${index}`}
+                        <span className="text-gray-500 text-sm ml-2">
+                          (
+                          {new Date(order.created_at).toLocaleTimeString([], {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
+                          )
+                        </span>
+                      </h3>
+
+                      {order.status === 'unserved' && (
+                        <Button
+                          className="bg-[#820D17] text-white text-sm px-4 py-2"
+                          onClick={() => handleMarkAsDone(order.id)}
+                        >
+                          Done
+                        </Button>
+                      )}
+                    </div>
+
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b">
+                          <th className="text-left py-2 font-medium text-gray-600">
+                            Product
+                          </th>
+                          <th className="text-center py-2 font-medium text-gray-600">
+                            Qty
+                          </th>
+                          <th className="text-right py-2 font-medium text-gray-600">
+                            Price
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {order.items.map((item, i) => (
+                          <tr key={i} className="border-b">
+                            <td className="py-2">{item.name}</td>
+                            <td className="py-2 text-center">
+                              {item.quantity}
+                            </td>
+                            <td className="py-2 text-right">
+                              ₱{item.price * item.quantity}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ))}
+              </div>
             ) : (
               <p className="text-gray-500 text-center mt-10">
                 No active orders for this table.
