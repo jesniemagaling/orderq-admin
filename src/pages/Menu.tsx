@@ -14,14 +14,28 @@ interface MenuItem {
   status: 'in_stock' | 'out_of_stock';
 }
 
-export default function MenuPage() {
+export default function Menu() {
   const [menu, setMenu] = useState<MenuItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [categories, setCategories] = useState<string[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<string>('All');
+  const [stockFilter, setStockFilter] = useState<
+    'all' | 'in_stock' | 'out_of_stock'
+  >('all');
 
   const fetchMenu = async () => {
     try {
-      const res = await api.get('/menu');
-      setMenu(res.data);
+      const res = await api.get<MenuItem[]>('/menu');
+      const data = res.data;
+      setMenu(data);
+
+      const uniqueCategories: string[] = [
+        'All',
+        ...Array.from(
+          new Set(data.map((item) => String(item.category || 'Uncategorized')))
+        ),
+      ];
+      setCategories(uniqueCategories);
     } catch (err) {
       console.error('Failed to fetch menu:', err);
     } finally {
@@ -48,18 +62,70 @@ export default function MenuPage() {
     return isNaN(num) ? '₱0.00' : `₱${num.toFixed(2)}`;
   };
 
+  // Filtering logic
+  const filteredMenu = menu.filter((item) => {
+    const matchesCategory =
+      selectedCategory === 'All' || item.category === selectedCategory;
+    const matchesStock = stockFilter === 'all' || item.status === stockFilter;
+    return matchesCategory && matchesStock;
+  });
+
   return (
     <div className="p-8 bg-gray-50 min-h-screen">
-      <div className="flex justify-between items-center mb-8">
+      {/* Header Row */}
+      <div className="flex flex-wrap items-center justify-between mb-8 gap-4">
         <h1 className="text-3xl font-bold text-gray-900">Menu</h1>
-        <Button
-          onClick={() => (window.location.href = '/add-menu')}
-          className="flex items-center gap-2 bg-[#820D17] hover:bg-[#a41722]"
-        >
-          <PlusCircle size={18} /> Add Menu
-        </Button>
+
+        <div className="flex flex-wrap items-center gap-4">
+          {/* Category Filter */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Category
+            </label>
+            <select
+              value={selectedCategory}
+              onChange={(e) => setSelectedCategory(e.target.value)}
+              className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#820D17]/40"
+            >
+              {categories.map((cat) => (
+                <option key={cat} value={cat}>
+                  {cat}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Stock Filter */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Stock Status
+            </label>
+            <select
+              value={stockFilter}
+              onChange={(e) =>
+                setStockFilter(
+                  e.target.value as 'all' | 'in_stock' | 'out_of_stock'
+                )
+              }
+              className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#820D17]/40"
+            >
+              <option value="all">All</option>
+              <option value="in_stock">In Stock</option>
+              <option value="out_of_stock">Out of Stock</option>
+            </select>
+          </div>
+
+          {/* Add Menu Button */}
+          <Button
+            onClick={() => (window.location.href = '/add-menu')}
+            className="flex items-center gap-2 bg-[#820D17] hover:bg-[#a41722] h-[40px] mt-5"
+          >
+            <PlusCircle size={18} /> Add Menu
+          </Button>
+        </div>
       </div>
 
+      {/* Table */}
       {loading ? (
         <p>Loading menu...</p>
       ) : (
@@ -101,17 +167,17 @@ export default function MenuPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {menu.length === 0 ? (
+                  {filteredMenu.length === 0 ? (
                     <tr>
                       <td
-                        colSpan={7}
+                        colSpan={8}
                         className="text-center text-gray-500 py-6"
                       >
-                        No menu items found.
+                        No menu items found for selected filters.
                       </td>
                     </tr>
                   ) : (
-                    menu.map((item) => (
+                    filteredMenu.map((item) => (
                       <tr
                         key={item.id}
                         className="border-b hover:bg-gray-50 transition"
@@ -133,7 +199,9 @@ export default function MenuPage() {
                           </span>
                         </td>
                         <td className="p-2 text-gray-800">{item.name}</td>
-                        <td className="p-2 text-gray-800">{item.category}</td>
+                        <td className="p-2 text-gray-800">
+                          {item.category || '—'}
+                        </td>
                         <td className="p-2 text-gray-500 truncate max-w-xs">
                           {item.description || '—'}
                         </td>
