@@ -2,10 +2,12 @@ import { useEffect, useState } from 'react';
 import api from '../lib/axios';
 import { PlusCircle, Edit, Trash2 } from 'lucide-react';
 import Button from '../components/ui/Button';
+import { Swiper, SwiperSlide } from 'swiper/react';
 
 interface MenuItem {
   id: number;
   name: string;
+  category: string;
   description: string;
   price: number | string;
   stocks: number;
@@ -61,93 +63,109 @@ export default function MenuPage() {
       {loading ? (
         <p>Loading menu...</p>
       ) : (
-        <div className="overflow-x-auto bg-white rounded-lg shadow-sm">
-          <table className="w-full text-sm text-left border-collapse">
-            <thead className="bg-gray-100 border-b">
-              <tr>
-                <th className="px-6 py-3 font-medium text-gray-700">
-                  Product ID
-                </th>
-                <th className="px-6 py-3 font-medium text-gray-700">Status</th>
-                <th className="px-6 py-3 font-medium text-gray-700">
-                  Product Name
-                </th>
-                <th className="px-6 py-3 font-medium text-gray-700">
-                  Description
-                </th>
-                <th className="px-6 py-3 font-medium text-gray-700 text-center">
-                  Stocks
-                </th>
-                <th className="px-6 py-3 font-medium text-gray-700 text-center">
-                  Price
-                </th>
-                <th className="px-6 py-3 font-medium text-gray-700 text-center">
-                  Action
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {menu.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="text-center text-gray-500 py-6">
-                    No menu items found.
-                  </td>
-                </tr>
-              ) : (
-                menu.map((item) => (
-                  <tr
-                    key={item.id}
-                    className="border-b hover:bg-gray-50 transition"
-                  >
-                    <td className="px-6 py-3 font-medium text-gray-700">
-                      #{item.id.toString().padStart(6, '0')}
-                    </td>
-                    <td className="px-6 py-3">
-                      <span
-                        className={`${
-                          item.status === 'in_stock'
-                            ? 'text-yellow-600'
-                            : 'text-red-600'
-                        } font-medium`}
-                      >
-                        {item.status === 'in_stock'
-                          ? 'In Stock'
-                          : 'Out of Stock'}
-                      </span>
-                    </td>
-                    <td className="px-6 py-3 font-medium text-gray-800">
-                      {item.name}
-                    </td>
-                    <td className="px-6 py-3 text-gray-500 truncate max-w-xs">
-                      {item.description || '—'}
-                    </td>
-                    <td className="px-6 py-3 text-center text-gray-700">
-                      {item.stocks}
-                    </td>
-                    <td className="px-6 py-3 text-center text-gray-700">
-                      {formatPrice(item.price)}
-                    </td>
-                    <td className="px-6 py-3 text-center space-x-3">
-                      <button
-                        className="text-green-600 hover:text-green-800 font-medium inline-flex items-center gap-1"
-                        onClick={() =>
-                          (window.location.href = `/menu/edit/${item.id}`)
-                        }
-                      >
-                        <Edit size={16} /> Edit
-                      </button>
-                      <button
-                        className="text-red-600 hover:text-red-800 font-medium inline-flex items-center gap-1"
-                        onClick={() => handleDelete(item.id)}
-                      >
-                        <Trash2 size={16} /> Delete
-                      </button>
-                    </td>
+        <div className="bg-white rounded-lg shadow-sm">
+          <Swiper
+            slidesPerView="auto"
+            spaceBetween={0}
+            freeMode={true}
+            grabCursor={true}
+            allowTouchMove={true}
+            className="min-w-[1190px]"
+          >
+            <SwiperSlide style={{ width: 'auto' }}>
+              <table className="min-w-[1190px] w-full text-sm text-left border-collapse">
+                <thead className="bg-gray-100 border-b">
+                  <tr>
+                    <th className="p-2 font-semibold text-gray-700">
+                      Product ID
+                    </th>
+                    <th className="p-2 font-semibold text-gray-700">Status</th>
+                    <th className="p-2 font-semibold text-gray-700">
+                      Product Name
+                    </th>
+                    <th className="p-2 font-semibold text-gray-700">
+                      Category
+                    </th>
+                    <th className="p-2 font-semibold text-gray-700">
+                      Description
+                    </th>
+                    <th className="p-2 font-semibold text-gray-700 text-center">
+                      Stocks
+                    </th>
+                    <th className="p-2 font-semibold text-gray-700 text-center">
+                      Price
+                    </th>
+                    <th className="p-2 font-semibold text-gray-700 text-center">
+                      Action
+                    </th>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                </thead>
+                <tbody>
+                  {menu.length === 0 ? (
+                    <tr>
+                      <td
+                        colSpan={7}
+                        className="text-center text-gray-500 py-6"
+                      >
+                        No menu items found.
+                      </td>
+                    </tr>
+                  ) : (
+                    menu.map((item) => (
+                      <tr
+                        key={item.id}
+                        className="border-b hover:bg-gray-50 transition"
+                      >
+                        <td className="p-2 text-gray-700">
+                          #{item.id.toString().padStart(6, '0')}
+                        </td>
+                        <td className="p-2">
+                          <span
+                            className={`${
+                              item.status === 'in_stock'
+                                ? 'text-yellow-600'
+                                : 'text-red-600'
+                            }`}
+                          >
+                            {item.status === 'in_stock'
+                              ? 'In Stock'
+                              : 'Out of Stock'}
+                          </span>
+                        </td>
+                        <td className="p-2 text-gray-800">{item.name}</td>
+                        <td className="p-2 text-gray-800">{item.category}</td>
+                        <td className="p-2 text-gray-500 truncate max-w-xs">
+                          {item.description || '—'}
+                        </td>
+                        <td className="p-2 text-center text-gray-700">
+                          {item.stocks}
+                        </td>
+                        <td className="p-2 text-center text-gray-700">
+                          {formatPrice(item.price)}
+                        </td>
+                        <td className="p-2 text-center space-x-3">
+                          <button
+                            className="text-green-600 hover:text-green-800 font-medium inline-flex items-center gap-1"
+                            onClick={() =>
+                              (window.location.href = `/menu/edit/${item.id}`)
+                            }
+                          >
+                            <Edit size={16} /> Edit
+                          </button>
+                          <button
+                            className="text-red-600 hover:text-red-800 font-medium inline-flex items-center gap-1"
+                            onClick={() => handleDelete(item.id)}
+                          >
+                            <Trash2 size={16} /> Delete
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </SwiperSlide>
+          </Swiper>
         </div>
       )}
     </div>
