@@ -106,7 +106,7 @@ export default function AddMenu() {
 
       await api.post('/menu', payload);
 
-      toast.success('Menu added successfully!');
+      toast.success(`${form.name.trim() || 'New item'} added to menu!`);
       navigate('/admin/menu');
     } catch (err) {
       console.error('Failed to add menu:', err);

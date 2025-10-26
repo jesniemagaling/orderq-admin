@@ -41,7 +41,6 @@ export default function App() {
         pauseOnFocusLoss
         draggable
         pauseOnHover
-        theme="colored" // gives nice red/green styles
       />
     </Router>
   );
