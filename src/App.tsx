@@ -7,6 +7,8 @@ import Menu from './pages/Menu';
 import AddMenu from './components/AddMenu';
 import Tables from './pages/Tables';
 import KitchenOrders from './pages/KitchenOrders';
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 export default function App() {
   return (
@@ -30,6 +32,17 @@ export default function App() {
           <Route path="/kitchen/orders" element={<KitchenOrders />} />
         </Route>
       </Routes>
+      <ToastContainer
+        position="top-right"
+        autoClose={2500}
+        hideProgressBar={false}
+        newestOnTop={false}
+        closeOnClick
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+        theme="colored" // gives nice red/green styles
+      />
     </Router>
   );
 }

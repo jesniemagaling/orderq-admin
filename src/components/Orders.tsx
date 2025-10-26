@@ -73,7 +73,7 @@ export default function Orders() {
     <>
       <h1 className="text-3xl font-bold mb-6">Orders</h1>
       <div className="flex gap-10">
-        <div className="w-1/2">
+        <div className="w-1/2 h-screen overflow-y-auto pr-2">
           {orders.length === 0 ? (
             <p className="text-gray-500">No orders found.</p>
           ) : (
@@ -137,6 +137,7 @@ export default function Orders() {
                 <thead>
                   <tr className="border-b">
                     <th className="py-2 text-left w-[60%]">Product Name</th>
+                    <th className="py-2 text-left w-[20%]">Table Number</th>
                     <th className="py-2 text-center w-[20%]">Quantity</th>
                     <th className="py-2 text-right w-[20%]">Price</th>
                   </tr>
@@ -145,6 +146,9 @@ export default function Orders() {
                   {selectedOrder.items?.map((item) => (
                     <tr key={item.id} className="border-b">
                       <td className="py-1 w-[60%]">{item.name}</td>
+                      <td className="py-1 text-center w-[20%]">
+                        {item.quantity}
+                      </td>
                       <td className="py-1 text-center w-[20%]">
                         {item.quantity}
                       </td>
