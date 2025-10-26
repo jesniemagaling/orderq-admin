@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Upload } from 'lucide-react';
 import Button from '../components/ui/Button';
 import api from '../lib/axios';
+import { toast } from 'react-toastify';
 
 export default function AddMenu() {
   const [image, setImage] = useState<File | null>(null);
@@ -80,7 +81,7 @@ export default function AddMenu() {
     const stockValue = Number(form.stocks);
 
     if (priceValue < 1 || stockValue < 1) {
-      alert('Price and Stocks must be at least 1.');
+      toast.warn('Price and Stocks must be at least 1.');
       return;
     }
 
@@ -105,11 +106,11 @@ export default function AddMenu() {
 
       await api.post('/menu', payload);
 
-      alert('Menu added successfully!');
+      toast.success('Menu added successfully!');
       navigate('/admin/menu');
     } catch (err) {
       console.error('Failed to add menu:', err);
-      alert('Failed to save menu.');
+      toast.error('Failed to save menu.');
     }
   };
 
