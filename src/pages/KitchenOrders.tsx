@@ -75,7 +75,7 @@ export default function KitchenOrders() {
 
       setTablesWithNotif((prev) => {
         const updated = prev.includes(tableId) ? prev : [...prev, tableId];
-        console.log('[KitchenOrders] tablesWithNotif:', updated); // ✅ debug log
+        console.log('[KitchenOrders] tablesWithNotif:', updated);
         return updated;
       });
 
@@ -115,8 +115,6 @@ export default function KitchenOrders() {
       for (const order of unservedOrders) {
         await api.put(`/orders/${order.id}/serve`);
       }
-
-      // Update UI instantly
       setOrders((prev) =>
         prev.map((o) =>
           o.table_id === tableId ? { ...o, status: 'served' } : o
@@ -160,7 +158,7 @@ export default function KitchenOrders() {
   return (
     <div className="flex gap-10">
       <div className="w-1/2">
-        <h1 className="text-3xl font-semibold mb-6">All Orders</h1>
+        <h1 className="text-3xl font-bold mb-6">All Orders</h1>
 
         {tables.length === 0 ? (
           <p className="text-gray-500">No active orders.</p>

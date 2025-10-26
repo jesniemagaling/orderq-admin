@@ -71,7 +71,7 @@ export default function Orders() {
 
   return (
     <>
-      <h1 className="text-3xl font-semibold mb-6">Orders</h1>
+      <h1 className="text-3xl font-bold mb-6">Orders</h1>
       <div className="flex gap-10">
         <div className="w-1/2">
           {orders.length === 0 ? (

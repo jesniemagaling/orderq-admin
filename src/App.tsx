@@ -4,6 +4,7 @@ import MainLayout from './layouts/MainLayout';
 import Overview from './pages/Overview';
 import Orders from './components/Orders';
 import Menu from './pages/Menu';
+import AddMenu from './components/AddMenu';
 import Tables from './pages/Tables';
 import KitchenOrders from './pages/KitchenOrders';
 
@@ -19,6 +20,7 @@ export default function App() {
           <Route path="/admin/overview" element={<Overview />} />
           <Route path="/admin/orders" element={<Orders />} />
           <Route path="/admin/menu" element={<Menu />} />
+          <Route path="/admin/add-menu" element={<AddMenu />} />
 
           {/* Cashier */}
           <Route path="/cashier/tables" element={<Tables />} />

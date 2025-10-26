@@ -201,7 +201,7 @@ export default function Tables() {
   return (
     <div className="flex gap-10">
       <div className="w-1/2">
-        <h1 className="text-3xl font-semibold mb-6">All Tables</h1>
+        <h1 className="text-3xl font-bold mb-6">All Tables</h1>
 
         {tables.length === 0 ? (
           <p className="text-gray-500">No tables found.</p>

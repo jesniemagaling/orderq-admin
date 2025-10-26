@@ -3,6 +3,7 @@ import api from '../lib/axios';
 import { PlusCircle, Edit, Trash2 } from 'lucide-react';
 import Button from '../components/ui/Button';
 import { Swiper, SwiperSlide } from 'swiper/react';
+import EditMenu from '../components/EditMenu';
 
 interface MenuItem {
   id: number;
@@ -22,6 +23,18 @@ export default function Menu() {
   const [stockFilter, setStockFilter] = useState<
     'all' | 'in_stock' | 'out_of_stock'
   >('all');
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [selectedId, setSelectedId] = useState<number | null>(null);
+
+  const openEditModal = (id: number) => {
+    setSelectedId(id);
+    setIsEditOpen(true);
+  };
+
+  const closeEditModal = () => {
+    setIsEditOpen(false);
+    setSelectedId(null);
+  };
 
   const fetchMenu = async () => {
     try {
@@ -71,21 +84,19 @@ export default function Menu() {
   });
 
   return (
-    <div className="p-8 bg-gray-50 min-h-screen">
-      {/* Header Row */}
+    <div className="p-6 bg-gray-50 min-h-screen">
       <div className="flex flex-wrap items-center justify-between mb-8 gap-4">
         <h1 className="text-3xl font-bold text-gray-900">Menu</h1>
 
-        <div className="flex flex-wrap items-center gap-4">
-          {/* Category Filter */}
+        <div className="flex flex-wrap items-center gap-6">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
               Category
             </label>
             <select
               value={selectedCategory}
               onChange={(e) => setSelectedCategory(e.target.value)}
-              className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#820D17]/40"
+              className="border border-gray-300 rounded-lg px-2 py-1 text-sm focus:ring-2 focus:ring-[#820D17]/40"
             >
               {categories.map((cat) => (
                 <option key={cat} value={cat}>
@@ -95,9 +106,8 @@ export default function Menu() {
             </select>
           </div>
 
-          {/* Stock Filter */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
               Stock Status
             </label>
             <select
@@ -107,7 +117,7 @@ export default function Menu() {
                   e.target.value as 'all' | 'in_stock' | 'out_of_stock'
                 )
               }
-              className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#820D17]/40"
+              className="border border-gray-300 rounded-lg px-2 py-1 text-sm focus:ring-2 focus:ring-[#820D17]/40"
             >
               <option value="all">All</option>
               <option value="in_stock">In Stock</option>
@@ -115,17 +125,15 @@ export default function Menu() {
             </select>
           </div>
 
-          {/* Add Menu Button */}
           <Button
-            onClick={() => (window.location.href = '/add-menu')}
-            className="flex items-center gap-2 bg-[#820D17] hover:bg-[#a41722] h-[40px] mt-5"
+            onClick={() => (window.location.href = '/admin/add-menu')}
+            className="flex items-center gap-2 "
           >
             <PlusCircle size={18} /> Add Menu
           </Button>
         </div>
       </div>
 
-      {/* Table */}
       {loading ? (
         <p>Loading menu...</p>
       ) : (
@@ -214,9 +222,7 @@ export default function Menu() {
                         <td className="p-2 text-center space-x-3">
                           <button
                             className="text-green-600 hover:text-green-800 font-medium inline-flex items-center gap-1"
-                            onClick={() =>
-                              (window.location.href = `/menu/edit/${item.id}`)
-                            }
+                            onClick={() => openEditModal(item.id)}
                           >
                             <Edit size={16} /> Edit
                           </button>
@@ -236,6 +242,12 @@ export default function Menu() {
           </Swiper>
         </div>
       )}
+      <EditMenu
+        isOpen={isEditOpen}
+        onClose={closeEditModal}
+        menuId={selectedId}
+        onUpdated={fetchMenu}
+      />
     </div>
   );
 }
