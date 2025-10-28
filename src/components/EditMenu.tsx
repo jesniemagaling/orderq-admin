@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Upload, X } from 'lucide-react';
 import Button from '../components/ui/Button';
 import api from '../lib/axios';
+import { toast } from 'react-toastify';
 
 interface EditMenuProps {
   isOpen: boolean;
@@ -85,7 +86,7 @@ export default function EditMenu({
     const stockValue = Number(form.stocks);
 
     if (priceValue < 1 || stockValue < 1) {
-      alert('Price and Stocks must be at least 1.');
+      toast.warn('Price and Stocks must be at least 1.');
       return;
     }
 
@@ -109,12 +110,12 @@ export default function EditMenu({
 
       await api.put(`/menu/${menuId}`, payload);
 
-      alert('Menu updated successfully!');
+      toast.success(`${form.name.trim() || 'Menu item'} updated successfully!`);
       await onUpdated();
       onClose();
     } catch (err) {
       console.error('Failed to update menu:', err);
-      alert('Failed to update menu item.');
+      toast.error(`${form.name.trim() || 'Menu item'} failed to update.`);
     } finally {
       setLoading(false);
     }

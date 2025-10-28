@@ -4,6 +4,7 @@ import { PlusCircle, Edit, Trash2 } from 'lucide-react';
 import Button from '../components/ui/Button';
 import { Swiper, SwiperSlide } from 'swiper/react';
 import EditMenu from '../components/EditMenu';
+import { toast } from 'react-toastify';
 
 interface MenuItem {
   id: number;
@@ -60,13 +61,15 @@ export default function Menu() {
     fetchMenu();
   }, []);
 
-  const handleDelete = async (id: number) => {
+  const handleDelete = async (id: number, name: string) => {
     if (!confirm('Are you sure you want to delete this menu item?')) return;
     try {
       await api.delete(`/menu/${id}`);
       setMenu((prev) => prev.filter((item) => item.id !== id));
+      toast.success(`${name} deleted from the menu.`);
     } catch (err) {
       console.error('Failed to delete menu item:', err);
+      toast.error(`Failed to delete ${name}.`);
     }
   };
 
@@ -228,7 +231,7 @@ export default function Menu() {
                           </button>
                           <button
                             className="text-red-600 hover:text-red-800 font-medium inline-flex items-center gap-1"
-                            onClick={() => handleDelete(item.id)}
+                            onClick={() => handleDelete(item.id, item.name)}
                           >
                             <Trash2 size={16} /> Delete
                           </button>
