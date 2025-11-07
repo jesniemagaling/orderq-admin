@@ -37,7 +37,7 @@ export default function MainLayout() {
         <Sidebar role={role} />
       </div>
 
-      <main className="flex-1 ml-56 p-6 overflow-y-auto">
+      <main className="flex-1 ml-56 p-6 overflow-hidden flex flex-col">
         <Outlet />
       </main>
     </div>

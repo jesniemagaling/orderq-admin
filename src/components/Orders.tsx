@@ -73,7 +73,7 @@ export default function Orders() {
     <>
       <h1 className="text-3xl font-bold mb-6">Orders</h1>
       <div className="flex gap-10">
-        <div className="w-1/2 h-screen overflow-y-auto pr-2">
+        <div className="w-1/2 max-h-[820px] overflow-y-auto pr-2">
           {orders.length === 0 ? (
             <p className="text-gray-500">No orders found.</p>
           ) : (

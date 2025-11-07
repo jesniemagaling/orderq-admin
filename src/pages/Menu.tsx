@@ -87,7 +87,7 @@ export default function Menu() {
   });
 
   return (
-    <div className="p-6 bg-gray-50 min-h-screen">
+    <>
       <div className="flex flex-wrap items-center justify-between mb-8 gap-4">
         <h1 className="text-3xl font-bold text-gray-900">Menu</h1>
 
@@ -251,6 +251,6 @@ export default function Menu() {
         menuId={selectedId}
         onUpdated={fetchMenu}
       />
-    </div>
+    </>
   );
 }

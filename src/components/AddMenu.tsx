@@ -115,7 +115,7 @@ export default function AddMenu() {
   };
 
   return (
-    <div className="p-6 bg-white flex flex-col justify-between">
+    <div className=" flex flex-col justify-between">
       {/* Header */}
       <div className="flex items-center gap-4 mb-10">
         <Button

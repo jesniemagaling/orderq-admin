@@ -37,7 +37,6 @@ type TopItem = { name: string; amount: number; delta?: number };
 export default function Overview() {
   const [loading, setLoading] = useState(true);
 
-  // KPI states
   const [tablesTotal, setTablesTotal] = useState(0);
   const [tablesOccupied, setTablesOccupied] = useState(0);
   const [activeOrdersCount, setActiveOrdersCount] = useState(0);
@@ -58,11 +57,11 @@ export default function Overview() {
         // Fire main requests in parallel
         const [tablesRes, ordersRes, ordersAllRes, salesRes, topItemsRes] =
           await Promise.allSettled([
-            api.get('/tables'), // expected: array of tables with status
-            api.get('/orders?limit=10&sort=desc'), // expected: recent orders
-            api.get('/orders'), // all orders to compute counts
-            api.get('/orders/sales-graph?interval=hourly'), // expected: [{time, value}]
-            api.get('/menu/top-selling'), // expected top items array
+            api.get('/tables'),
+            api.get('/orders?limit=10&sort=desc'),
+            api.get('/orders'),
+            api.get('/orders/sales-graph?interval=hourly'),
+            api.get('/menu/top-selling'),
           ]);
 
         // TABLES
@@ -104,7 +103,7 @@ export default function Overview() {
           ]);
         }
 
-        // ALL ORDERS (counts & revenue)
+        // ALL ORDERS
         if (ordersAllRes.status === 'fulfilled') {
           const all = ordersAllRes.value.data as Order[];
           // active orders can be in_progress/unserved/pending depending on backend conventions
@@ -137,7 +136,6 @@ export default function Overview() {
         // SALES SERIES
         if (salesRes.status === 'fulfilled') {
           const series = salesRes.value.data;
-          // If the backend returns [{time: '12:00', value: 1000}, ...] we use it.
           if (Array.isArray(series) && series.length) {
             setSalesSeries(
               series.map((s: any) => ({
@@ -186,7 +184,6 @@ export default function Overview() {
     loadAll();
   }, []);
 
-  // derived: occupancy label
   const occupancyText = useMemo(
     () => `${tablesOccupied}/${tablesTotal}`,
     [tablesOccupied, tablesTotal]
@@ -269,14 +266,13 @@ export default function Overview() {
         <div className="lg:col-span-2 bg-white rounded-lg shadow-sm p-6">
           <h2 className="text-lg font-semibold mb-4">Latest Orders</h2>
 
-          <div className="overflow-x-auto">
+          <div className="max-h-[420px] overflow-y-auto pr-2">
             <table className="w-full text-sm">
               <thead className="text-left text-xs text-gray-500">
                 <tr>
                   <th className="pb-3">Order#</th>
                   <th className="pb-3">Time</th>
                   <th className="pb-3">Table</th>
-                  <th className="pb-3">Name</th>
                   <th className="pb-3 text-right">Amount</th>
                   <th className="pb-3">Status</th>
                 </tr>
@@ -293,7 +289,6 @@ export default function Overview() {
                     <td className="py-3">
                       {o.table_number || o.table_id || '-'}
                     </td>
-                    <td className="py-3">{o.name || '-'}</td>
                     <td className="py-3 text-right">
                       {formatCurrency(Number(o.amount || 0))}
                     </td>
