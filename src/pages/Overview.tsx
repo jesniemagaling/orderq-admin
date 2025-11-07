@@ -21,18 +21,21 @@ import {
 import { format } from 'date-fns';
 import api from '../lib/axios';
 import { toast } from 'react-toastify';
+import io from 'socket.io-client';
 
 type Order = {
   id: number;
   table_id?: number;
   table_number?: string;
   name?: string;
-  amount?: number;
+  total_amount?: number;
   status?: string;
   created_at?: string;
 };
 
 type TopItem = { name: string; amount: number; delta?: number };
+
+const socket = io(import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000');
 
 export default function Overview() {
   const [loading, setLoading] = useState(true);
@@ -49,18 +52,22 @@ export default function Overview() {
     { time: string; value: number }[]
   >([]);
   const [topSelling, setTopSelling] = useState<TopItem[]>([]);
+  const [salesInterval, setSalesInterval] = useState<
+    'hourly' | 'weekly' | 'monthly'
+  >('hourly');
 
   useEffect(() => {
-    const loadAll = async () => {
-      setLoading(true);
+    // Main reusable dashboard loader
+    const refreshDashboard = async () => {
       try {
-        // Fire main requests in parallel
+        setLoading(true);
+
         const [tablesRes, ordersRes, ordersAllRes, salesRes, topItemsRes] =
           await Promise.allSettled([
             api.get('/tables'),
             api.get('/orders?limit=10&sort=desc'),
             api.get('/orders'),
-            api.get('/orders/sales-graph?interval=hourly'),
+            api.get(`/orders/sales-graph?interval=${salesInterval}`),
             api.get('/menu/top-selling'),
           ]);
 
@@ -68,13 +75,11 @@ export default function Overview() {
         if (tablesRes.status === 'fulfilled') {
           const tables = tablesRes.value.data as any[];
           setTablesTotal(tables.length);
-          // adjust depending on your table.status values
           const occupied = tables.filter(
             (t) => t.status !== 'available'
           ).length;
           setTablesOccupied(occupied);
         } else {
-          // fallback mock
           setTablesTotal(13);
           setTablesOccupied(5);
         }
@@ -88,7 +93,7 @@ export default function Overview() {
               id: 13,
               table_number: '09',
               name: 'Kim Sabu',
-              amount: 1305,
+              total_amount: 1305,
               status: 'in_progress',
               created_at: new Date().toISOString(),
             },
@@ -96,7 +101,7 @@ export default function Overview() {
               id: 5,
               table_number: '13',
               name: 'Emma Brown',
-              amount: 1305,
+              total_amount: 1305,
               status: 'served',
               created_at: new Date().toISOString(),
             },
@@ -106,7 +111,8 @@ export default function Overview() {
         // ALL ORDERS
         if (ordersAllRes.status === 'fulfilled') {
           const all = ordersAllRes.value.data as Order[];
-          // active orders can be in_progress/unserved/pending depending on backend conventions
+
+          // Active orders
           setActiveOrdersCount(
             all.filter(
               (o) =>
@@ -116,12 +122,14 @@ export default function Overview() {
             ).length
           );
 
-          // today's revenue: sum orders placed today or use endpoint
+          // Today's revenue
           const today = new Date().toISOString().slice(0, 10);
           const revenue = all
             .filter((o) => o.created_at?.slice(0, 10) === today)
-            .reduce((s, o) => s + Number(o.amount || 0), 0);
+            .reduce((s, o) => s + Number(o.total_amount || 0), 0);
           setTodayRevenue(revenue);
+
+          // Kitchen queue
           setKitchenQueue(
             all.filter(
               (o) => o.status === 'pending' || o.status === 'pending_kitchen'
@@ -144,8 +152,6 @@ export default function Overview() {
               }))
             );
           } else {
-            // fallback mock hourly
-            const now = new Date();
             setSalesSeries(
               [12, 13, 14, 15, 16, 17, 18].map((h) => ({
                 time: `${h}:00`,
@@ -181,8 +187,36 @@ export default function Overview() {
       }
     };
 
-    loadAll();
-  }, []);
+    // --- Socket Realtime Updates ---
+    socket.on('connect', () => {
+      console.log('[Overview] Connected to socket:', socket.id);
+    });
+
+    // Realtime table status updates (occupied / available)
+    socket.on('tableStatusUpdate', (data) => {
+      console.log('[Overview] Table status changed:', data);
+      refreshDashboard();
+    });
+
+    // Realtime new orders
+    socket.on('newOrder', (data) => {
+      console.log('[Overview] New order received:', data);
+      refreshDashboard();
+    });
+
+    socket.on('disconnect', () => {
+      console.log('[Overview] Disconnected from socket');
+    });
+
+    // Initial dashboard load
+    refreshDashboard();
+
+    // Cleanup
+    return () => {
+      socket.off('tableStatusUpdate');
+      socket.off('newOrder');
+    };
+  }, [salesInterval]);
 
   const occupancyText = useMemo(
     () => `${tablesOccupied}/${tablesTotal}`,
@@ -266,47 +300,59 @@ export default function Overview() {
         <div className="lg:col-span-2 bg-white rounded-lg shadow-sm p-6">
           <h2 className="text-lg font-semibold mb-4">Latest Orders</h2>
 
-          <div className="max-h-[420px] overflow-y-auto pr-2">
+          <div className="max-h-[580px] overflow-y-auto">
             <table className="w-full text-sm">
-              <thead className="text-left text-xs text-gray-500">
+              <thead className="sticky top-0 bg-white border-b text-gray-600 text-xs font-medium">
                 <tr>
-                  <th className="pb-3">Order#</th>
-                  <th className="pb-3">Time</th>
-                  <th className="pb-3">Table</th>
-                  <th className="pb-3 text-right">Amount</th>
-                  <th className="pb-3">Status</th>
+                  <th className="py-2 pl-3 text-left w-[15%]">Order#</th>
+                  <th className="py-2 text-left w-[15%]">Time</th>
+                  <th className="py-2 text-left w-[15%]">Table</th>
+                  <th className="py-2 text-right w-[5%] pr-6">Amount</th>
+                  <th className="py-2 text-center w-[20%] pr-3">Status</th>
                 </tr>
               </thead>
-              <tbody>
-                {latestOrders.map((o) => (
-                  <tr key={o.id} className="border-b last:border-b-0">
-                    <td className="py-3">{o.id}</td>
-                    <td className="py-3">
-                      {o.created_at
-                        ? format(new Date(o.created_at), 'HH:mm')
-                        : '-'}
-                    </td>
-                    <td className="py-3">
-                      {o.table_number || o.table_id || '-'}
-                    </td>
-                    <td className="py-3 text-right">
-                      {formatCurrency(Number(o.amount || 0))}
-                    </td>
-                    <td className="py-3">
-                      <span
-                        className={`px-2 py-1 rounded-full text-xs ${
-                          o.status === 'served'
-                            ? 'bg-green-100 text-green-700'
-                            : o.status === 'in_progress'
-                            ? 'bg-yellow-100 text-yellow-700'
-                            : 'bg-blue-100 text-blue-700'
-                        }`}
-                      >
-                        {o.status?.replace('_', ' ') || '—'}
-                      </span>
+
+              <tbody className="divide-y divide-gray-100">
+                {latestOrders.length > 0 ? (
+                  latestOrders.map((o) => (
+                    <tr
+                      key={o.id}
+                      className="hover:bg-gray-50 transition-colors duration-150"
+                    >
+                      <td className="py-3 pl-3 text-gray-700">{o.id}</td>
+                      <td className="py-3 text-gray-600">
+                        {o.created_at
+                          ? format(new Date(o.created_at), 'HH:mm')
+                          : '-'}
+                      </td>
+                      <td className="py-3 text-left text-gray-700">
+                        {o.table_number || o.table_id || '-'}
+                      </td>
+                      <td className="py-3 pr-6 text-center font-medium text-gray-800">
+                        {formatCurrency(Number(o.total_amount || 0))}
+                      </td>
+                      <td className="py-3 text-center pr-3">
+                        <span
+                          className={`px-3 py-1 rounded-full text-xs font-medium inline-block min-w-[75px] text-center ${
+                            o.status === 'served'
+                              ? 'bg-green-100 text-green-700'
+                              : o.status === 'in_progress'
+                              ? 'bg-yellow-100 text-yellow-700'
+                              : 'bg-blue-100 text-blue-700'
+                          }`}
+                        >
+                          {o.status?.replace('_', ' ') || '—'}
+                        </span>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={5} className="text-center py-6 text-gray-400">
+                      No recent orders available
                     </td>
                   </tr>
-                ))}
+                )}
               </tbody>
             </table>
           </div>
@@ -317,7 +363,19 @@ export default function Overview() {
           <div className="bg-white rounded-lg shadow-sm p-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-semibold">Sales Performance</h3>
-              <div className="text-sm text-gray-500">Hourly</div>
+              <select
+                value={salesInterval}
+                onChange={(e) =>
+                  setSalesInterval(
+                    e.target.value as 'hourly' | 'weekly' | 'monthly'
+                  )
+                }
+                className="text-sm border border-gray-300 rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-[#820D17]/40"
+              >
+                <option value="hourly">Hourly</option>
+                <option value="weekly">Weekly</option>
+                <option value="monthly">Monthly</option>
+              </select>
             </div>
 
             <div style={{ height: 180 }}>
