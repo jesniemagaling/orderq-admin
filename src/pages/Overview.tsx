@@ -240,10 +240,6 @@ export default function Overview() {
           <div>
             <p className="text-sm text-gray-500">Occupancy</p>
             <p className="text-2xl font-semibold">{occupancyText}</p>
-            <p className="text-sm text-green-600 flex items-center gap-2 mt-1">
-              <TrendingUp size={14} /> 16%{' '}
-              <span className="text-gray-500 ml-2">Up from last hour</span>
-            </p>
           </div>
           <div className="bg-red-50 rounded-lg p-3">
             <Users size={28} className="text-red-500" />
@@ -254,10 +250,6 @@ export default function Overview() {
           <div>
             <p className="text-sm text-gray-500">Active Orders</p>
             <p className="text-2xl font-semibold">{activeOrdersCount}</p>
-            <p className="text-sm text-green-600 mt-1">
-              ▲ 13%{' '}
-              <span className="text-gray-500 ml-2">Up from last hour</span>
-            </p>
           </div>
           <div className="bg-yellow-50 rounded-lg p-3">
             <Bell size={28} className="text-yellow-600" />
@@ -270,10 +262,6 @@ export default function Overview() {
             <p className="text-2xl font-semibold">
               {formatCurrency(todayRevenue)}
             </p>
-            <p className="text-sm text-red-500 mt-1">
-              ▼ 5%{' '}
-              <span className="text-gray-500 ml-2">Down from last hour</span>
-            </p>
           </div>
           <div className="bg-green-50 rounded-lg p-3">
             <DollarSign size={28} className="text-green-500" />
@@ -284,9 +272,6 @@ export default function Overview() {
           <div>
             <p className="text-sm text-gray-500">Kitchen Queue</p>
             <p className="text-2xl font-semibold">{kitchenQueue}</p>
-            <p className="text-sm text-green-600 mt-1">
-              ▲ 9% <span className="text-gray-500 ml-2">Up from last hour</span>
-            </p>
           </div>
           <div className="bg-blue-50 rounded-lg p-3">
             <Clock size={28} className="text-blue-500" />
@@ -295,12 +280,12 @@ export default function Overview() {
       </div>
 
       {/* Main content grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
         {/* left: latest orders */}
-        <div className="lg:col-span-2 bg-white rounded-lg shadow-sm p-6">
+        <div className="lg:col-span-2 bg-white rounded-lg shadow-sm p-6 flex flex-col h-full">
           <h2 className="text-lg font-semibold mb-4">Latest Orders</h2>
 
-          <div className="max-h-[580px] overflow-y-auto">
+          <div className="overflow-y-auto flex-1">
             <table className="w-full text-sm">
               <thead className="sticky top-0 bg-white border-b text-gray-600 text-xs font-medium">
                 <tr>
@@ -359,9 +344,9 @@ export default function Overview() {
         </div>
 
         {/* right column: charts & top sellers */}
-        <div className="space-y-6">
-          <div className="bg-white rounded-lg shadow-sm p-6">
-            <div className="flex items-center justify-between mb-4">
+        <div className="flex flex-col space-y-6 h-full">
+          <div className="bg-white rounded-lg shadow-sm p-6 flex-1">
+            <div className="flex items-center gap-2 justify-between mb-4">
               <h3 className="font-semibold">Sales Performance</h3>
               <select
                 value={salesInterval}
@@ -378,7 +363,7 @@ export default function Overview() {
               </select>
             </div>
 
-            <div style={{ height: 180 }}>
+            <div className="h-[180px]">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={salesSeries}>
                   <CartesianGrid strokeDasharray="3 3" horizontal={false} />
@@ -397,7 +382,7 @@ export default function Overview() {
             </div>
           </div>
 
-          <div className="bg-white rounded-lg shadow-sm p-6">
+          <div className="bg-white rounded-lg shadow-sm p-6 flex-1 overflow-y-auto">
             <h3 className="font-semibold mb-4">Top selling items</h3>
             <ul className="space-y-3">
               {topSelling.map((t, i) => (
