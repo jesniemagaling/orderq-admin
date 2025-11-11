@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import api from '../lib/axios';
 import Button from '../components/ui/Button';
+import PrintReceipt from '../components/PrintReceipt';
 
 interface Order {
   id: number;
@@ -167,17 +168,30 @@ export default function Orders() {
                 </p>
               </div>
 
-              <div className="flex gap-3">
-                <Button>Print Receipt</Button>
-                {selectedOrder.payment_status !== 'paid' && (
-                  <Button
-                    onClick={() => handleBillOut(selectedOrder.id)}
-                    disabled={updating}
-                  >
-                    {updating ? 'Processing...' : 'Bill Out'}
-                  </Button>
-                )}
-              </div>
+              {selectedOrder && (
+                <div className="flex gap-3">
+                  <PrintReceipt
+                    order={selectedOrder}
+                    onConfirm={() => {
+                      setOrders((prev) =>
+                        prev.map((o) =>
+                          o.id === selectedOrder.id
+                            ? { ...o, status: 'unserved' }
+                            : o
+                        )
+                      );
+                    }}
+                  />
+                  {selectedOrder.payment_status !== 'paid' && (
+                    <Button
+                      onClick={() => handleBillOut(selectedOrder.id)}
+                      disabled={updating}
+                    >
+                      {updating ? 'Processing...' : 'Bill Out'}
+                    </Button>
+                  )}
+                </div>
+              )}
             </>
           ) : (
             <p className="text-gray-500 mt-10 text-center">
