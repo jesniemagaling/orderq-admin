@@ -5,7 +5,7 @@ import Button from '../components/ui/Button';
 interface Order {
   id: number;
   table_id: string;
-  status: string;
+  payment_status: string;
   total_amount: number;
   payment_method: string;
   items: {
@@ -51,13 +51,13 @@ export default function Orders() {
       // update order state locally
       setOrders((prev) =>
         prev.map((order) =>
-          order.id === orderId ? { ...order, status: 'paid' } : order
+          order.id === orderId ? { ...order, payment_status: 'paid' } : order
         )
       );
 
       // also update selected order if currently open
       if (selectedOrder?.id === orderId) {
-        setSelectedOrder({ ...selectedOrder, status: 'paid' });
+        setSelectedOrder({ ...selectedOrder, payment_status: 'paid' });
       }
     } catch (err) {
       console.error('Failed to mark as paid', err);
@@ -104,7 +104,7 @@ export default function Orders() {
                   <div className="text-right">
                     <p
                       className={`text-sm font-medium ${
-                        order.status === 'paid'
+                        order.payment_status === 'paid'
                           ? selectedOrder?.id === order.id
                             ? 'text-blue-300'
                             : 'text-blue-500'
@@ -113,7 +113,7 @@ export default function Orders() {
                           : 'text-yellow-600'
                       }`}
                     >
-                      {order.status === 'paid' ? 'Paid' : 'Unpaid'}
+                      {order.payment_status === 'paid' ? 'Paid' : 'Unpaid'}
                     </p>
                     <p className="font-medium">
                       ₱{Number(order.total_amount).toLocaleString()}
@@ -169,7 +169,7 @@ export default function Orders() {
 
               <div className="flex gap-3">
                 <Button>Print Receipt</Button>
-                {selectedOrder.status !== 'paid' && (
+                {selectedOrder.payment_status !== 'paid' && (
                   <Button
                     onClick={() => handleBillOut(selectedOrder.id)}
                     disabled={updating}

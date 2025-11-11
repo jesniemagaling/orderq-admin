@@ -17,6 +17,7 @@ import {
   ResponsiveContainer,
   Tooltip,
   CartesianGrid,
+  Brush,
 } from 'recharts';
 import { format } from 'date-fns';
 import api from '../lib/axios';
@@ -169,21 +170,96 @@ export default function Overview() {
               }))
             );
           } else {
-            // fallback
+            if (salesInterval === 'hourly') {
+              setSalesSeries(
+                [10, 11, 12, 13, 14, 15, 16, 17, 18].map((h) => ({
+                  time:
+                    h === 0
+                      ? '12AM'
+                      : h < 12
+                      ? `${h}AM`
+                      : h === 12
+                      ? '12PM'
+                      : `${h - 12}PM`,
+                  value: Math.round(5000 + Math.random() * 15000),
+                }))
+              );
+            } else if (salesInterval === 'weekly') {
+              const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+              setSalesSeries(
+                days.map((d) => ({
+                  time: d,
+                  value: Math.round(10000 + Math.random() * 20000),
+                }))
+              );
+            } else if (salesInterval === 'monthly') {
+              const months = [
+                'Jan',
+                'Feb',
+                'Mar',
+                'Apr',
+                'May',
+                'Jun',
+                'Jul',
+                'Aug',
+                'Sep',
+                'Oct',
+                'Nov',
+                'Dec',
+              ];
+              setSalesSeries(
+                months.map((m) => ({
+                  time: m,
+                  value: Math.round(50000 + Math.random() * 100000),
+                }))
+              );
+            }
+          }
+        } else {
+          if (salesInterval === 'hourly') {
             setSalesSeries(
-              [12, 13, 14, 15, 16, 17, 18].map((h) => ({
-                time: `${h}:00`,
+              [10, 11, 12, 13, 14, 15, 16, 17, 18].map((h) => ({
+                time:
+                  h === 0
+                    ? '12AM'
+                    : h < 12
+                    ? `${h}AM`
+                    : h === 12
+                    ? '12PM'
+                    : `${h - 12}PM`,
                 value: Math.round(5000 + Math.random() * 15000),
               }))
             );
+          } else if (salesInterval === 'weekly') {
+            const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+            setSalesSeries(
+              days.map((d) => ({
+                time: d,
+                value: Math.round(10000 + Math.random() * 20000),
+              }))
+            );
+          } else if (salesInterval === 'monthly') {
+            const months = [
+              'Jan',
+              'Feb',
+              'Mar',
+              'Apr',
+              'May',
+              'Jun',
+              'Jul',
+              'Aug',
+              'Sep',
+              'Oct',
+              'Nov',
+              'Dec',
+            ];
+            setSalesSeries(
+              months.map((m) => ({
+                time: m,
+                value: Math.round(50000 + Math.random() * 100000),
+              }))
+            );
           }
-        } else {
-          setSalesSeries(
-            [12, 13, 14, 15, 16, 17, 18].map((h) => ({
-              time: `${h}:00`,
-              value: Math.round(5000 + Math.random() * 15000),
-            }))
-          );
         }
 
         // TOP SELLING
@@ -205,7 +281,7 @@ export default function Overview() {
       }
     };
 
-    // --- Socket Realtime Updates ---
+    // Socket Realtime Updates
     socket.on('connect', () => {
       console.log('[Overview] Connected to socket:', socket.id);
     });
@@ -379,19 +455,38 @@ export default function Overview() {
               </select>
             </div>
 
-            <div className="h-[180px]">
+            <div className="h-[240px]">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={salesSeries}>
                   <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-                  <XAxis dataKey="time" tick={{ fontSize: 12 }} />
-                  <YAxis hide />
-                  <Tooltip />
+                  <XAxis
+                    dataKey="time"
+                    tick={{ fontSize: 12 }}
+                    interval={0}
+                    padding={{ left: 20, right: 20 }}
+                  />
+                  <YAxis hide domain={['auto', 'auto']} />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: '#fff',
+                      borderRadius: '6px',
+                      border: '1px solid #eee',
+                    }}
+                    formatter={(value: number) => [
+                      `₱${value.toLocaleString()}`,
+                      'Sales',
+                    ]}
+                    labelFormatter={(label) => `Time: ${label}`}
+                  />
                   <Line
                     type="monotone"
                     dataKey="value"
-                    stroke="#B91C1C"
+                    stroke="#820D17"
                     strokeWidth={3}
-                    dot={false}
+                    dot={{ r: 4 }}
+                    activeDot={{ r: 6, fill: '#820D17', stroke: '#fff' }}
+                    animationDuration={800}
+                    animationEasing="ease-in-out"
                   />
                 </LineChart>
               </ResponsiveContainer>
