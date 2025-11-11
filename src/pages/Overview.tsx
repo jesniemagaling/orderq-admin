@@ -62,14 +62,27 @@ export default function Overview() {
       try {
         setLoading(true);
 
-        const [tablesRes, ordersRes, ordersAllRes, salesRes, topItemsRes] =
-          await Promise.allSettled([
-            api.get('/tables'),
-            api.get('/orders?limit=10&sort=desc'),
-            api.get('/orders'),
-            api.get(`/orders/sales-graph?interval=${salesInterval}`),
-            api.get('/menu/top-selling'),
-          ]);
+        // Define today's date range
+        const today = new Date();
+        const start = `${today.toISOString().slice(0, 10)} 00:00:00`;
+        const end = `${today.toISOString().slice(0, 10)} 23:59:59`;
+
+        // Fetch all data in parallel
+        const [
+          tablesRes,
+          ordersRes,
+          ordersAllRes,
+          salesRes,
+          topItemsRes,
+          revenueRes,
+        ] = await Promise.allSettled([
+          api.get('/tables'),
+          api.get('/orders?limit=10&sort=desc'),
+          api.get('/orders'),
+          api.get(`/orders/sales-graph?interval=${salesInterval}`),
+          api.get('/menu/top-selling'),
+          api.get(`/orders/revenue?start=${start}&end=${end}`),
+        ]);
 
         // TABLES
         if (tablesRes.status === 'fulfilled') {
@@ -122,13 +135,6 @@ export default function Overview() {
             ).length
           );
 
-          // Today's revenue
-          const today = new Date().toISOString().slice(0, 10);
-          const revenue = all
-            .filter((o) => o.created_at?.slice(0, 10) === today)
-            .reduce((s, o) => s + Number(o.total_amount || 0), 0);
-          setTodayRevenue(revenue);
-
           // Kitchen queue
           setKitchenQueue(
             all.filter(
@@ -137,8 +143,19 @@ export default function Overview() {
           );
         } else {
           setActiveOrdersCount(20);
-          setTodayRevenue(513);
           setKitchenQueue(16);
+        }
+
+        //Today's Revenue
+        if (revenueRes.status === 'fulfilled') {
+          const rows = revenueRes.value.data;
+          if (Array.isArray(rows) && rows.length > 0) {
+            setTodayRevenue(Number(rows[0].total || 0));
+          } else {
+            setTodayRevenue(0);
+          }
+        } else {
+          setTodayRevenue(0);
         }
 
         // SALES SERIES
@@ -152,6 +169,7 @@ export default function Overview() {
               }))
             );
           } else {
+            // fallback
             setSalesSeries(
               [12, 13, 14, 15, 16, 17, 18].map((h) => ({
                 time: `${h}:00`,
@@ -192,13 +210,11 @@ export default function Overview() {
       console.log('[Overview] Connected to socket:', socket.id);
     });
 
-    // Realtime table status updates (occupied / available)
     socket.on('tableStatusUpdate', (data) => {
       console.log('[Overview] Table status changed:', data);
       refreshDashboard();
     });
 
-    // Realtime new orders
     socket.on('newOrder', (data) => {
       console.log('[Overview] New order received:', data);
       refreshDashboard();
@@ -392,7 +408,7 @@ export default function Overview() {
                     <div className="text-xs text-gray-500">Sales</div>
                   </div>
                   <div className="text-right">
-                    <div className="font-semibold">{t.amount}</div>
+                    <div className="font-semibold">₱{t.amount}</div>
                     <div
                       className={`text-xs ${
                         t.delta && t.delta > 0
