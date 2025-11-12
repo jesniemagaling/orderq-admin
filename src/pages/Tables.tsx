@@ -25,7 +25,6 @@ interface Order {
   created_at: string;
   items: OrderItem[];
   is_additional?: boolean;
-  sessionToken?: string;
 }
 
 interface Table {
@@ -33,6 +32,7 @@ interface Table {
   table_number: string;
   status: 'available' | 'occupied' | 'in_progress' | 'served';
   has_additional_order?: boolean;
+  sessionToken?: string;
 }
 
 interface TableDetailsResponse {
@@ -188,6 +188,39 @@ export default function Tables() {
     }
   };
 
+  const handleEndSession = async (tableId: number) => {
+    const table = tables.find((t) => t.id === tableId);
+
+    if (!table?.sessionToken) {
+      console.error('No active session token for this table');
+      return;
+    }
+
+    try {
+      await api.post(`/sessions/end/${table.sessionToken}`);
+
+      setSelectedTable(null);
+      setOrders([]);
+
+      setTables((prev) =>
+        prev.map((t) =>
+          t.id === tableId
+            ? {
+                ...t,
+                status: 'available',
+                has_additional_order: false,
+                sessionToken: undefined,
+              }
+            : t
+        )
+      );
+
+      console.log(`Session for table ${tableId} ended`);
+    } catch (err) {
+      console.error('Failed to end session', err);
+    }
+  };
+
   if (loading) return <p>Loading tables...</p>;
 
   const getStatusColor = (status: string) => {
@@ -259,6 +292,11 @@ export default function Tables() {
           <>
             <div className="flex justify-between items-center text-lg font-medium mb-6">
               Table#: {selectedTable.table_number}
+              {selectedTable.sessionToken && (
+                <Button onClick={() => handleEndSession(selectedTable.id)}>
+                  End Session
+                </Button>
+              )}
             </div>
 
             {orders.length > 0 ? (
