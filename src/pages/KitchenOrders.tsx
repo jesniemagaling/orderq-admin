@@ -231,7 +231,7 @@ export default function KitchenOrders() {
                       {order.status === 'unserved' && (
                         <Button
                           className="bg-[#820D17] text-white text-sm px-4 py-2"
-                          onClick={() => handleMarkAsDone(order.id)}
+                          onClick={() => handleMarkAsDone(order.table_id)}
                         >
                           Done
                         </Button>

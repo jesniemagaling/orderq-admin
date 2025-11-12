@@ -1,10 +1,13 @@
 import { useEffect, useState } from 'react';
 import api from '../lib/axios';
+import io from 'socket.io-client';
 import { PlusCircle, Edit, Trash2 } from 'lucide-react';
 import Button from '../components/ui/Button';
 import { Swiper, SwiperSlide } from 'swiper/react';
 import EditMenu from '../components/EditMenu';
 import { toast } from 'react-toastify';
+
+const socket = io(import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000');
 
 interface MenuItem {
   id: number;
@@ -59,6 +62,27 @@ export default function Menu() {
 
   useEffect(() => {
     fetchMenu();
+
+    // for real-time menu updates
+    socket.on('menuUpdated', (data) => {
+      console.log('[Menu] Real-time menu update:', data);
+
+      if (data.type === 'update') {
+        setMenu((prev) =>
+          prev.map((item) =>
+            item.id === data.item.id ? { ...item, ...data.item } : item
+          )
+        );
+      } else if (data.type === 'add') {
+        setMenu((prev) => [data.item, ...prev]);
+      } else if (data.type === 'delete') {
+        setMenu((prev) => prev.filter((item) => item.id !== data.item.id));
+      }
+    });
+
+    return () => {
+      socket.off('menuUpdated');
+    };
   }, []);
 
   const handleDelete = async (id: number, name: string) => {

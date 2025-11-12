@@ -454,7 +454,7 @@ export default function Overview() {
                     dataKey="time"
                     tick={{ fontSize: 12 }}
                     interval={0}
-                    padding={{ left: 20, right: 20 }}
+                    padding={{ left: 30, right: 30 }}
                   />
                   <YAxis hide domain={['auto', 'auto']} />
                   <Tooltip
