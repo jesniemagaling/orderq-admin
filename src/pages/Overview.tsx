@@ -8,6 +8,7 @@ import {
   Users,
   BarChart2,
   TrendingUp,
+  Package,
 } from 'lucide-react';
 import {
   LineChart,
@@ -34,7 +35,7 @@ type Order = {
   created_at?: string;
 };
 
-type TopItem = { name: string; amount: number; delta?: number };
+type TopItem = { name: string; sold: number; delta?: number };
 
 const socket = io(import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000');
 
@@ -45,7 +46,7 @@ export default function Overview() {
   const [tablesOccupied, setTablesOccupied] = useState(0);
   const [activeOrdersCount, setActiveOrdersCount] = useState(0);
   const [todayRevenue, setTodayRevenue] = useState(0);
-  const [kitchenQueue, setKitchenQueue] = useState(0);
+  const [lowStocksCount, setLowStocksCount] = useState(0);
 
   // lists
   const [latestOrders, setLatestOrders] = useState<Order[]>([]);
@@ -76,6 +77,7 @@ export default function Overview() {
           salesRes,
           topItemsRes,
           revenueRes,
+          lowStocksRes,
         ] = await Promise.allSettled([
           api.get('/tables'),
           api.get('/orders?limit=10&sort=desc'),
@@ -83,6 +85,7 @@ export default function Overview() {
           api.get(`/orders/sales-graph?interval=${salesInterval}`),
           api.get('/menu/top-selling'),
           api.get(`/orders/revenue?start=${start}&end=${end}`),
+          api.get('/menu'),
         ]);
 
         // TABLES
@@ -123,28 +126,12 @@ export default function Overview() {
         }
 
         // ALL ORDERS
-        if (ordersAllRes.status === 'fulfilled') {
-          const all = ordersAllRes.value.data as Order[];
-
-          // Active orders
-          setActiveOrdersCount(
-            all.filter(
-              (o) =>
-                o.status === 'in_progress' ||
-                o.status === 'unserved' ||
-                o.status === 'pending'
-            ).length
-          );
-
-          // Kitchen queue
-          setKitchenQueue(
-            all.filter(
-              (o) => o.status === 'pending' || o.status === 'pending_kitchen'
-            ).length
-          );
+        if (lowStocksRes.status === 'fulfilled') {
+          const menu = lowStocksRes.value.data as any[];
+          const lowStockItems = menu.filter((m) => m.stocks <= 10);
+          setLowStocksCount(lowStockItems.length);
         } else {
-          setActiveOrdersCount(20);
-          setKitchenQueue(16);
+          setLowStocksCount(5);
         }
 
         //Today's Revenue
@@ -267,10 +254,10 @@ export default function Overview() {
           setTopSelling(topItemsRes.value.data || []);
         } else {
           setTopSelling([
-            { name: 'Burgers', amount: 1658, delta: 1.2 },
-            { name: 'Chicken', amount: 1658, delta: 0.8 },
-            { name: 'Pizza', amount: 100, delta: -0.4 },
-            { name: 'Salad', amount: 1658, delta: 0.2 },
+            { name: 'Burgers', sold: 1658, delta: 1.2 },
+            { name: 'Chicken', sold: 1658, delta: 0.8 },
+            { name: 'Pizza', sold: 100, delta: -0.4 },
+            { name: 'Salad', sold: 1658, delta: 0.2 },
           ]);
         }
       } catch (err) {
@@ -362,11 +349,11 @@ export default function Overview() {
 
         <div className="bg-white rounded-lg p-5 shadow-sm flex items-center justify-between">
           <div>
-            <p className="text-sm text-gray-500">Kitchen Queue</p>
-            <p className="text-2xl font-semibold">{kitchenQueue}</p>
+            <p className="text-sm text-gray-500">Low Stocks Menu</p>
+            <p className="text-2xl font-semibold">{lowStocksCount}</p>
           </div>
           <div className="bg-blue-50 rounded-lg p-3">
-            <Clock size={28} className="text-blue-500" />
+            <Package size={28} className="text-blue-500" />
           </div>
         </div>
       </div>
@@ -413,12 +400,16 @@ export default function Overview() {
                           className={`px-3 py-1 rounded-full text-xs font-medium inline-block min-w-[75px] text-center ${
                             o.status === 'served'
                               ? 'bg-green-100 text-green-700'
-                              : o.status === 'in_progress'
+                              : o.status === 'pending'
                               ? 'bg-yellow-100 text-yellow-700'
                               : 'bg-blue-100 text-blue-700'
                           }`}
                         >
-                          {o.status?.replace('_', ' ') || '—'}
+                          {o.status
+                            ? o.status
+                                .replace('_', ' ')
+                                .replace(/\b\w/g, (c) => c.toUpperCase())
+                            : '—'}
                         </span>
                       </td>
                     </tr>
@@ -500,10 +491,10 @@ export default function Overview() {
                 <li key={i} className="flex items-center justify-between">
                   <div>
                     <div className="font-medium">{t.name}</div>
-                    <div className="text-xs text-gray-500">Sales</div>
+                    <div className="text-xs text-gray-500">Sold</div>
                   </div>
                   <div className="text-right">
-                    <div className="font-semibold">₱{t.amount}</div>
+                    <div className="font-semibold">{t.sold}</div>
                     <div
                       className={`text-xs ${
                         t.delta && t.delta > 0
