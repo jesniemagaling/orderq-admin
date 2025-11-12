@@ -25,6 +25,7 @@ interface Order {
   created_at: string;
   items: OrderItem[];
   is_additional?: boolean;
+  sessionToken?: string;
 }
 
 interface Table {
@@ -131,7 +132,13 @@ export default function Tables() {
       // remove the red dot once table is opened
       setTables((prev) =>
         prev.map((t) =>
-          t.id === tableId ? { ...t, has_additional_order: false } : t
+          t.id === tableId
+            ? {
+                ...t,
+                has_additional_order: false,
+                sessionToken: data.session?.token,
+              }
+            : t
         )
       );
     } catch (err) {
@@ -250,12 +257,12 @@ export default function Tables() {
       <div className="flex-1 py-4 px-2">
         {selectedTable ? (
           <>
-            <h2 className="text-right text-lg font-medium mb-6">
+            <div className="flex justify-between items-center text-lg font-medium mb-6">
               Table#: {selectedTable.table_number}
-            </h2>
+            </div>
 
             {orders.length > 0 ? (
-              <>
+              <div className="max-h-[740px] overflow-y-auto">
                 {orders.map((order, orderIdx) => (
                   <div key={order.id} className="mb-8 border-b px-4">
                     <div className="flex justify-between items-center mb-2">
@@ -282,7 +289,7 @@ export default function Tables() {
                       )}
                     </div>
 
-                    <table className="w-full text-sm table-fixed">
+                    <table className="w-full text-sm">
                       <thead>
                         <tr className="border-b">
                           <th className="py-2 font-medium text-gray-600 text-left w-[60%]">
@@ -312,7 +319,7 @@ export default function Tables() {
                     </table>
                   </div>
                 ))}
-              </>
+              </div>
             ) : (
               <p className="text-gray-500 mt-10 text-center">
                 No orders for this table.

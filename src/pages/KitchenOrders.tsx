@@ -25,21 +25,35 @@ interface Order {
   table_number: string;
 }
 
+interface Table {
+  id: number;
+  table_number: string;
+  status: string;
+}
+
 export default function KitchenOrders() {
   const [orders, setOrders] = useState<Order[]>([]);
+  const [tables, setTables] = useState<Table[]>([]);
   const [selectedTableId, setSelectedTableId] = useState<number | null>(null);
   const [tableOrders, setTableOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [tablesWithNotif, setTablesWithNotif] = useState<number[]>([]);
 
-  // Fetch unserved + served
+  // Fetch all tables (including available)
+  const fetchTables = async () => {
+    try {
+      const res = await api.get<Table[]>('/tables');
+      setTables(res.data);
+    } catch (err) {
+      console.error('Failed to fetch tables', err);
+    }
+  };
+
+  // Fetch all orders
   const fetchOrders = async () => {
     try {
       const res = await api.get<Order[]>('/orders');
-      const filtered = res.data.filter(
-        (o) => o.status === 'unserved' || o.status === 'served'
-      );
-      setOrders(filtered);
+      setOrders(res.data);
     } catch (err) {
       console.error('Failed to load orders', err);
     } finally {
@@ -47,16 +61,18 @@ export default function KitchenOrders() {
     }
   };
 
-  // Fetch for selected table
+  // Fetch orders for a specific table
   const fetchOrdersForTable = async (tableId: number) => {
     try {
       const res = await api.get(`/tables/${tableId}/details`);
-      const data = res.data.orders.filter(
+      const data = res.data.orders;
+
+      const filtered = data.filter(
         (order: Order) =>
           order.status === 'unserved' || order.status === 'served'
       );
 
-      const sorted = data.sort((a: Order, b: Order) =>
+      const sorted = filtered.sort((a: Order, b: Order) =>
         a.created_at.localeCompare(b.created_at)
       );
 
@@ -65,34 +81,37 @@ export default function KitchenOrders() {
       console.error('Failed to fetch table orders', err);
     }
   };
+
+  // Initial load + socket events
   useEffect(() => {
-    fetchOrders();
+    const init = async () => {
+      await fetchTables();
+      await fetchOrders();
+    };
+    init();
 
     socket.on('newOrder', async ({ tableId, confirmed }) => {
       if (!confirmed) return;
 
-      console.log('[KitchenOrders] Received newOrder:', tableId, confirmed);
+      setTablesWithNotif((prev) =>
+        prev.includes(tableId) ? prev : [...prev, tableId]
+      );
 
-      setTablesWithNotif((prev) => {
-        const updated = prev.includes(tableId) ? prev : [...prev, tableId];
-        console.log('[KitchenOrders] tablesWithNotif:', updated);
-        return updated;
-      });
-
-      // Refresh all tables' data
       await fetchOrders();
+      await fetchTables();
 
       if (selectedTableId === tableId) {
         await fetchOrdersForTable(tableId);
-
         setTablesWithNotif((prev) => prev.filter((id) => id !== tableId));
       }
     });
 
-    socket.on('tableStatusUpdate', ({ tableId, status }) => {
-      if (['unserved', 'served', 'in_progress'].includes(status)) {
-        fetchOrders();
-        if (selectedTableId === tableId) fetchOrdersForTable(tableId);
+    socket.on('tableStatusUpdate', async ({ tableId, status }) => {
+      await fetchOrders();
+      await fetchTables();
+
+      if (selectedTableId === tableId) {
+        await fetchOrdersForTable(tableId);
       }
     });
 
@@ -108,63 +127,53 @@ export default function KitchenOrders() {
     setTablesWithNotif((prev) => prev.filter((id) => id !== tableId));
   };
 
-  // Mark all unserved orders of table as served
+  // Mark table orders as done (served)
   const handleMarkAsDone = async (tableId: number) => {
     try {
       const unservedOrders = tableOrders.filter((o) => o.status === 'unserved');
       for (const order of unservedOrders) {
         await api.put(`/orders/${order.id}/serve`);
       }
-      setOrders((prev) =>
-        prev.map((o) =>
-          o.table_id === tableId ? { ...o, status: 'served' } : o
-        )
-      );
-      setTableOrders((prev) =>
-        prev.map((o) =>
-          o.status === 'unserved' ? { ...o, status: 'served' } : o
-        )
-      );
 
       await fetchOrders();
+      await fetchTables();
       await fetchOrdersForTable(tableId);
     } catch (err) {
       console.error('Failed to mark as served:', err);
     }
   };
 
-  // Group tables
-  const tables = useMemo(() => {
-    return Object.values(
-      orders.reduce((acc, order) => {
-        if (!acc[order.table_id]) {
-          acc[order.table_id] = {
-            id: order.table_id,
-            table_number: order.table_number,
-            has_additional_order: tablesWithNotif.includes(order.table_id),
-            hasUnserved: false,
-            hasServed: false,
-          };
-        }
-        if (order.status === 'unserved') acc[order.table_id].hasUnserved = true;
-        if (order.status === 'served') acc[order.table_id].hasServed = true;
-        return acc;
-      }, {} as Record<number, { id: number; table_number: string; has_additional_order: boolean; hasUnserved: boolean; hasServed: boolean }>)
-    );
-  }, [orders, tablesWithNotif]);
+  // Combine table + order info
+  const combinedTables = useMemo(() => {
+    return tables.map((table, index) => {
+      const relatedOrders = orders.filter((o) => o.table_id === table.id);
+      const hasUnserved = relatedOrders.some((o) => o.status === 'unserved');
+      const hasServed = relatedOrders.some((o) => o.status === 'served');
+      const has_additional_order = tablesWithNotif.includes(table.id);
+
+      return {
+        ...table,
+        displayNumber: index + 1,
+        hasUnserved,
+        hasServed,
+        has_additional_order,
+      };
+    });
+  }, [tables, orders, tablesWithNotif]);
 
   if (loading) return <p>Loading orders...</p>;
 
   return (
     <div className="flex gap-10">
+      {/* Tables List */}
       <div className="w-1/2">
-        <h1 className="text-3xl font-bold mb-6">All Orders</h1>
+        <h1 className="text-3xl font-bold mb-6">All Tables</h1>
 
-        {tables.length === 0 ? (
-          <p className="text-gray-500">No active orders.</p>
+        {combinedTables.length === 0 ? (
+          <p className="text-gray-500">No tables found.</p>
         ) : (
           <div className="space-y-4">
-            {tables.map((table) => (
+            {combinedTables.map((table) => (
               <div
                 key={table.id}
                 onClick={() => handleTableClick(table.id)}
@@ -175,18 +184,22 @@ export default function KitchenOrders() {
                 }`}
               >
                 <span className="font-medium text-lg">
-                  Table #{table.table_number}
+                  Table #{table.displayNumber}
                 </span>
                 <span
                   className={`text-sm font-medium ${
-                    table.hasUnserved
-                      ? selectedTableId === table.id
-                        ? 'text-white'
-                        : 'text-red-600'
+                    selectedTableId === table.id
+                      ? 'text-white'
+                      : table.status === 'available'
+                      ? 'text-green-500'
+                      : table.hasUnserved
+                      ? 'text-red-600'
                       : 'text-blue-400'
                   }`}
                 >
-                  {table.hasUnserved ? 'Unserved' : 'Served'}
+                  {table.status
+                    .replace('_', ' ')
+                    .replace(/\b\w/g, (l) => l.toUpperCase())}
                 </span>
 
                 {table.has_additional_order && (
@@ -198,16 +211,18 @@ export default function KitchenOrders() {
         )}
       </div>
 
+      {/* Table Orders */}
       <div className="flex-1 py-4 px-2">
         {selectedTableId ? (
           <>
             <h2 className="text-right text-lg font-medium mb-6">
               Table #:{' '}
-              {tables.find((t) => t.id === selectedTableId)?.table_number}
+              {combinedTables.find((t) => t.id === selectedTableId)
+                ?.table_number || '—'}
             </h2>
 
             {tableOrders.length > 0 ? (
-              <div>
+              <div className="max-h-[740px] overflow-y-auto">
                 {tableOrders.map((order, index) => (
                   <div
                     key={order.id}
@@ -241,13 +256,13 @@ export default function KitchenOrders() {
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="border-b">
-                          <th className="text-left py-2 font-medium text-gray-600">
+                          <th className="py-2 font-medium text-gray-600 text-left w-[60%]">
                             Product
                           </th>
-                          <th className="text-center py-2 font-medium text-gray-600">
+                          <th className="py-2 font-medium text-gray-600 text-center w-[20%]">
                             Qty
                           </th>
-                          <th className="text-right py-2 font-medium text-gray-600">
+                          <th className="py-2 font-medium text-gray-600 text-right w-[20%]">
                             Price
                           </th>
                         </tr>
@@ -255,11 +270,11 @@ export default function KitchenOrders() {
                       <tbody>
                         {order.items.map((item, i) => (
                           <tr key={i} className="border-b">
-                            <td className="py-2">{item.name}</td>
-                            <td className="py-2 text-center">
+                            <td className="py-2 w-[60%]">{item.name}</td>
+                            <td className="py-2 text-center w-[20%]">
                               {item.quantity}
                             </td>
-                            <td className="py-2 text-right">
+                            <td className="py-2 text-right w-[20%]">
                               ₱{item.price * item.quantity}
                             </td>
                           </tr>

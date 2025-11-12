@@ -1,15 +1,6 @@
 // src/pages/Overview.tsx
 import { useEffect, useMemo, useState } from 'react';
-import {
-  Bell,
-  Coffee,
-  DollarSign,
-  Clock,
-  Users,
-  BarChart2,
-  TrendingUp,
-  Package,
-} from 'lucide-react';
+import { Bell, DollarSign, Users, Package } from 'lucide-react';
 import {
   LineChart,
   Line,
@@ -18,7 +9,6 @@ import {
   ResponsiveContainer,
   Tooltip,
   CartesianGrid,
-  Brush,
 } from 'recharts';
 import { format } from 'date-fns';
 import api from '../lib/axios';
@@ -59,51 +49,68 @@ export default function Overview() {
   >('hourly');
 
   useEffect(() => {
-    // Main reusable dashboard loader
     const refreshDashboard = async () => {
-      try {
-        setLoading(true);
+      setLoading(true);
 
+      try {
         // Define today's date range
         const today = new Date();
         const start = `${today.toISOString().slice(0, 10)} 00:00:00`;
         const end = `${today.toISOString().slice(0, 10)} 23:59:59`;
 
+        // Define all endpoints
+        const endpoints = [
+          '/tables',
+          '/orders?limit=10&sort=desc',
+          '/orders',
+          `/orders/sales-graph?interval=${salesInterval}`,
+          '/menu/top-selling',
+          `/orders/revenue?start=${start}&end=${end}`,
+          '/menu',
+          '/orders/active-count',
+        ];
+
         // Fetch all data in parallel
+        const results = await Promise.allSettled(
+          endpoints.map((url) => api.get(url))
+        );
+
         const [
           tablesRes,
-          ordersRes,
-          ordersAllRes,
+          latestOrdersRes,
+          allOrdersRes,
           salesRes,
           topItemsRes,
           revenueRes,
-          lowStocksRes,
-        ] = await Promise.allSettled([
-          api.get('/tables'),
-          api.get('/orders?limit=10&sort=desc'),
-          api.get('/orders'),
-          api.get(`/orders/sales-graph?interval=${salesInterval}`),
-          api.get('/menu/top-selling'),
-          api.get(`/orders/revenue?start=${start}&end=${end}`),
-          api.get('/menu'),
-        ]);
+          menuRes,
+          activeOrdersRes,
+        ] = results;
 
-        // TABLES
+        // Tables
         if (tablesRes.status === 'fulfilled') {
           const tables = tablesRes.value.data as any[];
           setTablesTotal(tables.length);
-          const occupied = tables.filter(
-            (t) => t.status !== 'available'
-          ).length;
-          setTablesOccupied(occupied);
+          setTablesOccupied(
+            tables.filter((t) => t.status !== 'available').length
+          );
         } else {
           setTablesTotal(13);
           setTablesOccupied(5);
         }
 
-        // LATEST ORDERS
-        if (ordersRes.status === 'fulfilled') {
-          setLatestOrders(ordersRes.value.data || []);
+        // Active Orders Count
+        if (allOrdersRes.status === 'fulfilled') {
+          const activeCount = allOrdersRes.value.data.filter(
+            (o: any) => o.status === 'in_progress' || o.status === 'pending'
+          ).length;
+          setActiveOrdersCount(activeCount);
+        } else {
+          setActiveOrdersCount(8);
+        }
+
+        // Latest Orders
+        if (latestOrdersRes.status === 'fulfilled') {
+          setLatestOrders(latestOrdersRes.value.data || []);
         } else {
           setLatestOrders([
             {
@@ -125,106 +132,48 @@ export default function Overview() {
           ]);
         }
 
-        // ALL ORDERS
-        if (lowStocksRes.status === 'fulfilled') {
-          const menu = lowStocksRes.value.data as any[];
-          const lowStockItems = menu.filter((m) => m.stocks <= 10);
+        // Menu Stocks
+        if (menuRes.status === 'fulfilled') {
+          const lowStockItems = menuRes.value.data.filter(
+            (m: any) => m.stocks <= 10
+          );
           setLowStocksCount(lowStockItems.length);
         } else {
           setLowStocksCount(5);
         }
 
-        //Today's Revenue
+        // Today's Revenue
         if (revenueRes.status === 'fulfilled') {
           const rows = revenueRes.value.data;
-          if (Array.isArray(rows) && rows.length > 0) {
-            setTodayRevenue(Number(rows[0].total || 0));
-          } else {
-            setTodayRevenue(0);
-          }
+          setTodayRevenue(
+            Array.isArray(rows) && rows.length > 0
+              ? Number(rows[0].total || 0)
+              : 0
+          );
         } else {
           setTodayRevenue(0);
         }
 
-        // SALES SERIES
-        if (salesRes.status === 'fulfilled') {
-          const series = salesRes.value.data;
-          if (Array.isArray(series) && series.length) {
-            setSalesSeries(
-              series.map((s: any) => ({
-                time: s.time,
-                value: Number(s.value || 0),
-              }))
-            );
-          } else {
-            if (salesInterval === 'hourly') {
-              setSalesSeries(
-                [10, 11, 12, 13, 14, 15, 16, 17, 18].map((h) => ({
-                  time:
-                    h === 0
-                      ? '12AM'
-                      : h < 12
-                      ? `${h}AM`
-                      : h === 12
-                      ? '12PM'
-                      : `${h - 12}PM`,
-                  value: Math.round(5000 + Math.random() * 15000),
-                }))
-              );
-            } else if (salesInterval === 'weekly') {
-              const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-              setSalesSeries(
-                days.map((d) => ({
-                  time: d,
-                  value: Math.round(10000 + Math.random() * 20000),
-                }))
-              );
-            } else if (salesInterval === 'monthly') {
-              const months = [
-                'Jan',
-                'Feb',
-                'Mar',
-                'Apr',
-                'May',
-                'Jun',
-                'Jul',
-                'Aug',
-                'Sep',
-                'Oct',
-                'Nov',
-                'Dec',
-              ];
-              setSalesSeries(
-                months.map((m) => ({
-                  time: m,
-                  value: Math.round(50000 + Math.random() * 100000),
-                }))
-              );
-            }
-          }
-        } else {
+        // Sales Series
+        const generateFallbackSales = () => {
           if (salesInterval === 'hourly') {
-            setSalesSeries(
-              [10, 11, 12, 13, 14, 15, 16, 17, 18].map((h) => ({
-                time:
-                  h === 0
-                    ? '12AM'
-                    : h < 12
-                    ? `${h}AM`
-                    : h === 12
-                    ? '12PM'
-                    : `${h - 12}PM`,
-                value: Math.round(5000 + Math.random() * 15000),
-              }))
-            );
+            return [10, 11, 12, 13, 14, 15, 16, 17, 18].map((h) => ({
+              time:
+                h === 0
+                  ? '12AM'
+                  : h < 12
+                  ? `${h}AM`
+                  : h === 12
+                  ? '12PM'
+                  : `${h - 12}PM`,
+              value: Math.round(5000 + Math.random() * 15000),
+            }));
           } else if (salesInterval === 'weekly') {
             const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-            setSalesSeries(
-              days.map((d) => ({
-                time: d,
-                value: Math.round(10000 + Math.random() * 20000),
-              }))
-            );
+            return days.map((d) => ({
+              time: d,
+              value: Math.round(10000 + Math.random() * 20000),
+            }));
           } else if (salesInterval === 'monthly') {
             const months = [
               'Jan',
@@ -240,16 +189,29 @@ export default function Overview() {
               'Nov',
               'Dec',
             ];
-            setSalesSeries(
-              months.map((m) => ({
-                time: m,
-                value: Math.round(50000 + Math.random() * 100000),
-              }))
-            );
+            return months.map((m) => ({
+              time: m,
+              value: Math.round(50000 + Math.random() * 100000),
+            }));
           }
+          return [];
+        };
+
+        if (
+          salesRes.status === 'fulfilled' &&
+          Array.isArray(salesRes.value.data)
+        ) {
+          setSalesSeries(
+            salesRes.value.data.map((s: any) => ({
+              time: s.time,
+              value: Number(s.value || 0),
+            }))
+          );
+        } else {
+          setSalesSeries(generateFallbackSales());
         }
 
-        // TOP SELLING
+        // Top Selling
         if (topItemsRes.status === 'fulfilled') {
           setTopSelling(topItemsRes.value.data || []);
         } else {
@@ -269,31 +231,22 @@ export default function Overview() {
     };
 
     // Socket Realtime Updates
-    socket.on('connect', () => {
-      console.log('[Overview] Connected to socket:', socket.id);
-    });
+    socket.on('connect', () =>
+      console.log('[Overview] Connected to socket:', socket.id)
+    );
+    socket.on('tableStatusUpdate', refreshDashboard);
+    socket.on('newOrder', refreshDashboard);
+    socket.on('disconnect', () =>
+      console.log('[Overview] Disconnected from socket')
+    );
 
-    socket.on('tableStatusUpdate', (data) => {
-      console.log('[Overview] Table status changed:', data);
-      refreshDashboard();
-    });
-
-    socket.on('newOrder', (data) => {
-      console.log('[Overview] New order received:', data);
-      refreshDashboard();
-    });
-
-    socket.on('disconnect', () => {
-      console.log('[Overview] Disconnected from socket');
-    });
-
-    // Initial dashboard load
+    // Initial load
     refreshDashboard();
 
     // Cleanup
     return () => {
-      socket.off('tableStatusUpdate');
-      socket.off('newOrder');
+      socket.off('tableStatusUpdate', refreshDashboard);
+      socket.off('newOrder', refreshDashboard);
     };
   }, [salesInterval]);
 
