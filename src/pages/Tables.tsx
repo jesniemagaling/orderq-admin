@@ -3,6 +3,7 @@ import { io, Socket } from 'socket.io-client';
 import api from '../lib/axios';
 import Button from '../components/ui/Button';
 import Modal from '../components/ui/Modal';
+import { debounce } from 'lodash';
 
 const socket: Socket = io('http://localhost:5000', {
   transports: ['websocket'], // ensures stable connection
@@ -47,7 +48,12 @@ export default function Tables() {
   const [selectedTable, setSelectedTable] = useState<Table | null>(null);
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingTable, setLoadingTable] = useState<number | null>(null);
   const [printOrder, setPrintOrder] = useState<Order | null>(null);
+
+  const debouncedFetchTableOrders = debounce((tableId: number) => {
+    fetchTableOrders(tableId);
+  }, 1000);
 
   // Fetch all tables from API
   const fetchTables = async () => {
@@ -88,7 +94,7 @@ export default function Tables() {
       // Optionally refresh if the same table is open
       setSelectedTable((prev) => {
         if (prev && prev.id === data.tableId) {
-          fetchTableOrders(data.tableId);
+          debouncedFetchTableOrders(data.tableId);
         }
         return prev;
       });
@@ -116,20 +122,16 @@ export default function Tables() {
 
   // Fetch specific table’s orders
   const fetchTableOrders = async (tableId: number) => {
+    if (loadingTable === tableId) return;
+    setLoadingTable(tableId);
+
     try {
       const res = await api.get<TableDetailsResponse>(
         `/tables/${tableId}/details`
       );
       const data = res.data;
 
-      const sortedOrders = data.orders.map((order, index) => ({
-        ...order,
-        is_additional: index > 0,
-      }));
-
-      setOrders(sortedOrders);
-
-      // remove the red dot once table is opened
+      setOrders(data.orders);
       setTables((prev) =>
         prev.map((t) =>
           t.id === tableId
@@ -143,7 +145,8 @@ export default function Tables() {
       );
     } catch (err) {
       console.error('Failed to load table orders', err);
-      setOrders([]);
+    } finally {
+      setLoadingTable(null);
     }
   };
 
