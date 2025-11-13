@@ -90,9 +90,6 @@ export default function PrintReceipt({ order, onConfirm }: PrintReceiptProps) {
       printWindow.print();
       printWindow.close();
 
-      // Optional: confirm order in backend
-      await api.post(`/orders/${order.id}/confirm`);
-
       // Call optional callback
       if (onConfirm) onConfirm();
       console.log(`Order #${order.id} printed and confirmed`);
