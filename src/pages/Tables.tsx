@@ -143,6 +143,16 @@ export default function Tables() {
             : t
         )
       );
+
+      setSelectedTable((prev) =>
+        prev && prev.id === tableId
+          ? {
+              ...prev,
+              sessionToken: data.session?.token,
+              has_additional_order: false,
+            }
+          : prev
+      );
     } catch (err) {
       console.error('Failed to load table orders', err);
     } finally {
