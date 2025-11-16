@@ -4,6 +4,7 @@ import api from '../lib/axios';
 import Button from '../components/ui/Button';
 import Modal from '../components/ui/Modal';
 import { debounce } from 'lodash';
+import QRCode from 'qrcode';
 
 const socket: Socket = io('http://localhost:5000', {
   transports: ['websocket'], // ensures stable connection
@@ -45,11 +46,15 @@ interface TableDetailsResponse {
 
 export default function Tables() {
   const [tables, setTables] = useState<Table[]>([]);
+  const [allQR, setAllQR] = useState<any[]>([]);
   const [selectedTable, setSelectedTable] = useState<Table | null>(null);
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingTable, setLoadingTable] = useState<number | null>(null);
   const [printOrder, setPrintOrder] = useState<Order | null>(null);
+  const [qrModalOpen, setQrModalOpen] = useState(false);
+  const [qrPreview, setQrPreview] = useState<string | null>(null);
+  const [qrTableNumber, setQrTableNumber] = useState<string | null>(null);
 
   const debouncedFetchTableOrders = debounce((tableId: number) => {
     fetchTableOrders(tableId);
@@ -70,9 +75,19 @@ export default function Tables() {
     }
   };
 
+  const fetchAllQR = async () => {
+    try {
+      const res = await api.get('/tables/qr/all');
+      setAllQR(res.data);
+    } catch (err) {
+      console.error('Failed to fetch QR list', err);
+    }
+  };
+
   // Establish socket and handle incoming updates
   useEffect(() => {
     fetchTables();
+    fetchAllQR();
 
     socket.on('connect', () => {
       console.log('Connected to WebSocket server');
@@ -175,7 +190,6 @@ export default function Tables() {
         window.print();
         await api.post(`/orders/${printOrder.id}/confirm`);
 
-        // Update table orders so the confirmed one changes to unserved
         setOrders((prev) =>
           prev.map((order) =>
             order.id === printOrder.id
@@ -184,7 +198,6 @@ export default function Tables() {
           )
         );
 
-        // Optionally mark the table as "in progress"
         if (selectedTable) {
           setTables((prev) =>
             prev.map((t) =>
@@ -231,6 +244,48 @@ export default function Tables() {
       console.log(`Session for table ${tableId} ended`);
     } catch (err) {
       console.error('Failed to end session', err);
+    }
+  };
+
+  const handleShowQR = async (table: Table) => {
+    try {
+      const qrData = allQR.find((x) => x.id === table.id);
+
+      if (!qrData?.qr_image_url) {
+        alert('No QR found for this table.');
+        return;
+      }
+
+      setQrPreview(qrData.qr_image_url);
+      setQrTableNumber(table.table_number);
+      setQrModalOpen(true);
+    } catch (err) {
+      console.error('Failed to show QR code', err);
+      alert('Failed to load QR code.');
+    }
+  };
+
+  const handleDownloadQRCode = async (table: Table) => {
+    try {
+      const qrData = allQR.find((x) => x.id === table.id);
+
+      if (!qrData?.qr_image_url) {
+        alert('No QR found for this table.');
+        return;
+      }
+
+      const response = await fetch(qrData.qr_image_url);
+      const blob = await response.blob();
+
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `Table-${table.table_number}-QR.png`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (err) {
+      console.error('QR download failed:', err);
+      alert('Failed to download QR code.');
     }
   };
 
@@ -303,8 +358,11 @@ export default function Tables() {
       <div className="flex-1 py-4 px-2">
         {selectedTable ? (
           <>
-            <div className="flex justify-between items-center text-lg font-medium mb-6">
-              Table#: {selectedTable.table_number}
+            <div className="flex gap-2 items-center text-lg font-medium mb-6">
+              <span className="px-2">Table#: {selectedTable.table_number}</span>
+              <Button onClick={() => handleShowQR(selectedTable)}>
+                View QR
+              </Button>
               {selectedTable.sessionToken && (
                 <Button onClick={() => handleEndSession(selectedTable.id)}>
                   End Session
@@ -448,6 +506,42 @@ export default function Tables() {
             </Button>
           </>
         )}
+      </Modal>
+
+      {/* QR Modal */}
+      <Modal isOpen={qrModalOpen} onClose={() => setQrModalOpen(false)}>
+        <div className="text-center">
+          <h2 className="text-xl font-semibold mb-4">
+            Table #{qrTableNumber} QR Code
+          </h2>
+
+          {qrPreview ? (
+            <img
+              src={qrPreview}
+              alt="QR Code"
+              className="mx-auto w-64 h-64 mb-4 border p-2 rounded-lg bg-white"
+            />
+          ) : (
+            <p>Loading QR...</p>
+          )}
+
+          <Button
+            className="w-full bg-primary"
+            onClick={async () => {
+              if (!qrPreview) return;
+
+              const response = await fetch(qrPreview);
+              const blob = await response.blob();
+
+              const link = document.createElement('a');
+              link.href = URL.createObjectURL(blob);
+              link.download = `Table-${qrTableNumber}-QR.png`;
+              link.click();
+            }}
+          >
+            Download QR
+          </Button>
+        </div>
       </Modal>
     </div>
   );
