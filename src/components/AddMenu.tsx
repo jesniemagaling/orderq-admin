@@ -184,7 +184,7 @@ export default function AddMenu() {
               <option value="">Choose Category</option>
               <option value="Iced">Iced</option>
               <option value="Fruity">Fruity</option>
-              <option value="Coffee">Coffee</option>
+              <option value="Coffee">Hot</option>
             </select>
           </div>
 
